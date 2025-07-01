@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Biography List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+        }
+        th, td {
+            border: 1px solid #aaa;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #eee;
+        }
+    </style>
+</head>
+<body>
+    <h1>Biography Information</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Gender</th>
+                <th>Place of Birth</th>
+                <th>Date of Birth</th>
+                <th>Role</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Hobby</th>
+                <th>Language</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in biography %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.gender }}</td>
+                <td>{{ item.place_of_birth }}</td>
+                <td>{{ item.data_birth|date:"Y-m-d" }}</td>
+                <td>{{ item.role }}</td>
+                <td>{{ item.email }}</td>
+                <td>{{ item.mobile }}</td>
+                <td>{{ item.hobby }}</td>
+                <td>{{ item.language }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9">No data available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

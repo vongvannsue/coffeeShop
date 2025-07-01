@@ -20,3 +20,5 @@ class biography(models.Model):
     mobile = models.IntegerField()
     hobby = models.CharField(max_length=255)
     language = models.CharField(max_length=255)
+    def __str__(self):
+        return self.name
