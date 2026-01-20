@@ -1,0 +1,64 @@
+{% block content %}
+    <style>
+        /* Container for the form */
+        .register-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 25px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-with-validation label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .form-with-validation input,
+        .form-with-validation select,
+        .form-with-validation textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid #aaa;
+            box-sizing: border-box;
+        }
+
+        .form-submit {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #0066cc;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .form-submit:hover {
+            background-color: #005bb5;
+        }
+    </style>
+
+    <div class="register-container">
+        <h1>Register a New User</h1>
+        <form class="form-with-validation" action="register/" method="post">
+            {% csrf_token %}
+            {{ form }}
+            <button class="form-submit">Submit</button>
+        </form>
+    </div>
+{% endblock %}
