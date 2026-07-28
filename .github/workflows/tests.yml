@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # CI-only dummy value, never used outside this workflow - real
+      # deployments must set a properly generated DJANGO_SECRET_KEY of
+      # their own (see .env.example).
+      DJANGO_SECRET_KEY: ci-test-only-secret-key-not-for-production-use
+      DEBUG: "True"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - run: python manage.py check
+
+      - run: python manage.py test
