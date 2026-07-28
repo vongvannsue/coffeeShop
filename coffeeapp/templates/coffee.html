@@ -34,6 +34,22 @@
     .product-info p {
         margin: 5px 0;
     }
+    .product-info form {
+        margin-top: 10px;
+    }
+    .product-info button {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 5px;
+        background-color: #0066cc;
+        color: white;
+        cursor: pointer;
+    }
+    .product-info button:disabled {
+        background-color: #aaa;
+        cursor: not-allowed;
+    }
 </style>
 {% endblock %}
 
@@ -48,6 +64,12 @@
                 <h2>{{ item.name }}</h2>
                 <p><strong>Price:</strong> ${{ item.price }}</p>
                 <p><strong>Quantity:</strong> {{ item.quantity }}</p>
+                <form action="{% url 'add_to_cart' item.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" {% if item.quantity < 1 %}disabled{% endif %}>
+                        {% if item.quantity < 1 %}Out of stock{% else %}Add to Cart{% endif %}
+                    </button>
+                </form>
             </div>
         </div>
         {% empty %}

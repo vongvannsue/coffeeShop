@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 
 import environ
+from django.contrib.messages import constants as message_constants
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -117,6 +118,14 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# Map Django's message levels to Bootstrap alert classes (base.html renders
+# messages as alert-{{ message.tags }}) - 'error' has no Bootstrap
+# equivalent, Bootstrap uses 'danger'.
+MESSAGE_TAGS = {
+    message_constants.ERROR: 'danger',
+}
 
 
 # Internationalization

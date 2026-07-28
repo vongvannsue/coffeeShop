@@ -61,6 +61,7 @@
         <h1>User Login</h1>
         <form class="form-with-validation" action="{% url 'login' %}" method="post">
             {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
             {{ form }}
             <div style="display: flex; justify-content: space-between; margin-top: 15px;">
                 <a href="{% url 'register' %}" class="form-submit"
