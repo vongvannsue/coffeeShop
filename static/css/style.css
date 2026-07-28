@@ -1,0 +1,7 @@
+/* Global stylesheet - currently a placeholder. BL-18 consolidates the
+   three different visual styles in this codebase (Bootstrap navbar,
+   plain custom CSS on coffee/biography pages, a third custom palette on
+   login/register) here. Must not be empty - Django's collectstatic
+   silently skips zero-byte files entirely (not copied to STATIC_ROOT at
+   all), which crashes ManifestStaticFilesStorage-backed serving (used in
+   production via whitenoise) on every page that references it. */
