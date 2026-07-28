@@ -1,5 +1,5 @@
 from django.contrib import admin
-from . models import coffee,biography
+from .models import Coffee, Biography
 
 # coffee
 class CoffeeAdmin(admin.ModelAdmin):
@@ -12,5 +12,5 @@ class BiographyAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 # Register your models here.
-admin.site.register(coffee,CoffeeAdmin)
-admin.site.register(biography,BiographyAdmin)
+admin.site.register(Coffee, CoffeeAdmin)
+admin.site.register(Biography, BiographyAdmin)
