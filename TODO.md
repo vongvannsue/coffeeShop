@@ -19,18 +19,19 @@ Work top-to-bottom — later phases assume earlier ones are done. Each item is i
 - [x] Django version decision: **pinned to installed 6.0.7** (not downgraded to 5.2). Updated `settings.py` docstring/doc links and `CLAUDE.md` to match.
 - [x] Split settings by environment: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, and `DATABASES` (via `env.db('DATABASE_URL', default='sqlite:///...')`) now all read from env vars, with a fail-fast error (not a silent insecure fallback) if `.env`/env vars are missing. Verified both the happy path and the missing-`.env` failure path with `manage.py check`.
 
-## Phase 1 — Security hardening (from `manage.py check --deploy`)
+## Phase 1 — Security hardening (from `manage.py check --deploy`) ✅ done 2026-07-29
 
-All 7 are real, currently-firing warnings — not hypothetical:
+All 7 were real, currently-firing warnings — not hypothetical. `W009`/`W020` were already fixed in Phase 0.
 
-- [ ] `security.W009` — replace the `django-insecure-...` `SECRET_KEY` (see Phase 0).
-- [ ] `security.W018` — `DEBUG = True` must be `False` in production (env-var gated).
-- [ ] `security.W020` — `ALLOWED_HOSTS = []` must list the real domain(s) in production.
-- [ ] `security.W012` — set `SESSION_COOKIE_SECURE = True` (HTTPS-only sessions).
-- [ ] `security.W016` — set `CSRF_COOKIE_SECURE = True`.
-- [ ] `security.W008` — set `SECURE_SSL_REDIRECT = True` once TLS is in place.
-- [ ] `security.W004` — set `SECURE_HSTS_SECONDS` (start small, e.g. `3600`, ramp up once confirmed safe).
-- [ ] Re-run `manage.py check --deploy` after each change until it reports zero issues.
+- [x] `security.W018` — `DEBUG` is env-driven (Phase 0); confirmed `False` clears this.
+- [x] `security.W012` — `SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=not DEBUG)` — off in dev, on automatically once `DEBUG=False`.
+- [x] `security.W016` — `CSRF_COOKIE_SECURE`, same pattern.
+- [x] `security.W008` — `SECURE_SSL_REDIRECT`, same pattern. **Caveat**: if this app runs behind a TLS-terminating reverse proxy/load balancer, this will redirect-loop unless `SECURE_PROXY_SSL_HEADER` is also set to match that proxy's forwarded-proto header — confirm the proxy config before flipping `DEBUG=False` in real deployment.
+- [x] `security.W004` — `SECURE_HSTS_SECONDS`, defaults to `3600` when `DEBUG=False`, `0` in dev.
+- [x] `SECURE_HSTS_INCLUDE_SUBDOMAINS` added alongside HSTS, same secure-by-default pattern.
+- [x] `SECURE_HSTS_PRELOAD` deliberately left `default=False` even in prod — submitting to the browser preload list is close to irreversible (affects every subdomain, hard to undo), so it's a manual opt-in via env var, not an automatic default. Enabling it produced the *only* remaining warning (`W021`) in the simulated-prod check below, which is expected.
+- [x] Verified: re-ran `check --deploy` with real dev `.env` (`DEBUG=True`) — the 5 warnings still show, correctly, since dev shouldn't enforce HTTPS. Re-ran with `DEBUG=False ALLOWED_HOSTS=example.com` env overrides (no `.env` edits) — all 5 cleared, only the expected `W021` (HSTS preload, opt-in) remained.
+- [x] `.env.example` documents all new production-only variables, commented out, with the default-off-in-dev behavior explained inline.
 
 ## Phase 2 — Data model correctness
 

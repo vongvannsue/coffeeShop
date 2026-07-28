@@ -31,6 +31,19 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
+# Secure by default in production, relaxed automatically under DEBUG so the
+# dev server keeps working over plain http:// with no .env changes needed.
+# If this app sits behind a TLS-terminating reverse proxy (nginx, a PaaS
+# load balancer, etc.), SECURE_SSL_REDIRECT will redirect-loop unless
+# SECURE_PROXY_SSL_HEADER is also set to match that proxy's forwarded-proto
+# header — confirm the proxy config before enabling in prod.
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=not DEBUG)
+SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=not DEBUG)
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=not DEBUG)
+SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=3600 if not DEBUG else 0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG)
+SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=False)
+
 
 # Application definition
 
