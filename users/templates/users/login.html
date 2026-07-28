@@ -55,11 +55,11 @@
 
     <div class="login-container">
         <h1>User Login</h1>
-        <form class="form-with-validation" action="login/" method="post">
+        <form class="form-with-validation" action="{% url 'login' %}" method="post">
             {% csrf_token %}
             {{ form }}
             <div style="display: flex; justify-content: space-between; margin-top: 15px;">
-                <a href="register/" class="form-submit"
+                <a href="{% url 'register' %}" class="form-submit"
                    style="background-color: #6c757d; text-align: center; text-decoration: none; padding: 12px;">Register</a>
                 <button type="submit" class="form-submit">Submit</button>
             </div>
