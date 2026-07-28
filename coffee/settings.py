@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
 import environ
@@ -162,6 +163,17 @@ STORAGES = {
         'BACKEND': 'coffee.storage.ForgivingManifestStaticFilesStorage',
     },
 }
+
+# Manifest-based storage needs collectstatic to have run before it can
+# resolve *any* {% static %} tag - it looks up hashed filenames in
+# STATIC_ROOT, not the source static/ dirs. Django's test runner forces
+# DEBUG=False, so every test that renders base.html would otherwise fail
+# unless collectstatic had already been run - a footgun for CI and for
+# anyone cloning this repo and running tests before their first deploy.
+# Tests don't care about cache-busted filenames, so fall back to the
+# plain storage instead of requiring that extra step everywhere.
+if 'test' in sys.argv:
+    STORAGES['staticfiles']['BACKEND'] = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
