@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
 import environ
@@ -65,6 +66,7 @@ LOGOUT_REDIRECT_URL = 'home'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -144,6 +146,34 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Without this, the project-level static/ dir (sibling to manage.py) is
+# invisible to Django's finders/collectstatic - only *app*-level static/
+# dirs are auto-discovered. This went unnoticed because the default
+# (non-manifest) storage builds {% static %} URLs without checking the
+# file actually exists; it only surfaces as a hard failure once
+# manifest-based storage (whitenoise, below) validates against it.
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'coffee.storage.ForgivingManifestStaticFilesStorage',
+    },
+}
+
+# Manifest-based storage needs collectstatic to have run before it can
+# resolve *any* {% static %} tag - it looks up hashed filenames in
+# STATIC_ROOT, not the source static/ dirs. Django's test runner forces
+# DEBUG=False, so every test that renders base.html would otherwise fail
+# unless collectstatic had already been run - a footgun for CI and for
+# anyone cloning this repo and running tests before their first deploy.
+# Tests don't care about cache-busted filenames, so fall back to the
+# plain storage instead of requiring that extra step everywhere.
+if 'test' in sys.argv:
+    STORAGES['staticfiles']['BACKEND'] = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field

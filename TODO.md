@@ -33,41 +33,38 @@ All 7 were real, currently-firing warnings — not hypothetical. `W009`/`W020` w
 - [x] Verified: re-ran `check --deploy` with real dev `.env` (`DEBUG=True`) — the 5 warnings still show, correctly, since dev shouldn't enforce HTTPS. Re-ran with `DEBUG=False ALLOWED_HOSTS=example.com` env overrides (no `.env` edits) — all 5 cleared, only the expected `W021` (HSTS preload, opt-in) remained.
 - [x] `.env.example` documents all new production-only variables, commented out, with the default-off-in-dev behavior explained inline.
 
-## Phase 2 — Data model correctness
+## Phase 2 — Data model correctness ✅ done (BL-01, BL-02)
 
-- [ ] `coffeeapp/models.py`: rename `coffee`/`biography` classes to `Coffee`/`Biography` (PEP 8 + Django convention — every import site touches this, do it once while the codebase is still small).
-- [ ] `coffee.image`: change from `CharField(max_length=2083)` to `URLField()` (or `ImageField` + `MEDIA_ROOT`/`MEDIA_URL` if you want real uploads instead of external links) — currently anything can be stored with zero validation.
-- [ ] `biography.mobile`: change from `IntegerField()` to `CharField` with a validator (phone numbers need leading zeros, `+country`, and formatting — an int is the wrong type categorically).
-- [ ] `biography.data_birth`: rename to `date_birth` (typo) and change `DateTimeField` → `DateField` (it's a birthdate, not a timestamp).
-- [ ] Add `__str__` to `Coffee` (biography already has one).
-- [ ] Decide on a `users` profile model now, before real user data accumulates: does this app need more than Django's built-in `auth.User` (e.g. address, phone, order history)? If yes, add a `Profile` model with a `OneToOneField(User)` — retrofitting this after users exist means a data migration, not just a schema migration.
-- [ ] Run `makemigrations`/`migrate` for any of the above once decided.
+- [x] `coffeeapp/models.py`: renamed `coffee`/`biography` classes to `Coffee`/`Biography` (no migration needed — Django's default table naming already lowercases model names, so this was purely a Python-level rename).
+- [x] `coffee.image`: `CharField(max_length=2083)` → `URLField()`.
+- [x] `biography.mobile`: `IntegerField()` → `CharField` with a phone-format validator.
+- [x] `biography.data_birth` → renamed `date_birth`, `DateTimeField` → `DateField`. Needed 3 migrations, not 1 — see `git log` on `coffeeapp/migrations/0003..0005` for why (renaming+retyping in one step loses data; SQLite's `AlterField` copies old text verbatim, needing a `RunSQL` normalization step first).
+- [x] `Coffee.__str__` added.
+- [x] Decision: **yes**, added a `Profile` model (`users/models.py`) — `phone`, `address_line1`, `city`, `postal_code` — since the cart/checkout below needs this data and retrofitting after real accounts exist would mean a data migration. A `post_save` signal auto-creates one for every new `User`; existing users backfilled via data migration.
 
-## Phase 3 — Finish the cart feature (currently a template with nothing behind it)
+## Phase 3 — Finish the cart feature ✅ done (BL-03..BL-06)
 
-`cart_detail.html` references `add_to_cart`, `remove_from_cart`, `delete_from_cart`, `clear_cart` — none of these exist as views, URLs, or models today.
+- [x] **Architecture decision**: DB-backed `Cart`/`CartItem` tied to `request.user` (not session-based) — `users` auth already worked end-to-end, and this avoids merging an anonymous session cart on login.
+- [x] `Cart`/`CartItem` models added, migration applied.
+- [x] `add_to_cart`, `remove_from_cart`, `delete_from_cart`, `clear_cart`, `cart_detail` views + URL names added.
+- [x] **Security**: all mutations are `@login_required` + `@require_POST` with `{% csrf_token %}` — verified GET returns 405, POST without a CSRF token returns 403.
+- [x] Cart link added to `base.html` nav (shown only when authenticated).
+- [x] Overselling guard: stock changes wrapped in `transaction.atomic()` + `select_for_update()`. Confirmed empirically that SQLite (`has_select_for_update = False`) no-ops this — real row locking only kicks in once Postgres is the DB (see Phase 5). Also fixed along the way: `login_view` now honors a validated `?next=` so an anonymous user redirected to login from a cart action lands back where they were, not always on `home`.
 
-- [ ] **Architecture decision**: session-based cart (works anonymously, lost on logout/device change) vs. DB-backed `Cart`/`CartItem` tied to `request.user` (persists, requires login). Given `users` auth now works end-to-end, a DB-backed cart tied to the logged-in user is the more defensible choice for a shop that already has accounts — but confirm before building.
-- [ ] Add `Cart`/`CartItem` models (or session dict schema) accordingly, with a migration.
-- [ ] Add `add_to_cart`, `remove_from_cart`, `delete_from_cart`, `clear_cart`, `cart_detail` views + URL names in `coffeeapp/urls.py`.
-- [ ] **Security**: all four mutating actions must be POST forms with `{% csrf_token %}`, not `<a href>` GET links as currently templated — GET must stay idempotent (no crawler/prefetch should ever be able to empty someone's cart).
-- [ ] Add a "Cart" link to the `base.html` nav once the URL names exist (left out deliberately until now — a `{% url 'cart_detail' %}` reference to a non-existent name would 500 every page on the site).
-- [ ] Guard against overselling: cart add/checkout must check `coffee.quantity` and decrement atomically (`F() expressions` or `select_for_update()` inside a transaction) — a naive read-then-write race is a real double-sell bug under concurrent requests.
+## Phase 4 — Testing ✅ done (BL-07..BL-10)
 
-## Phase 4 — Testing (currently zero coverage)
+- [x] `coffeeapp/tests.py` and `users/tests.py` — 27 tests, 0 → 27.
+- [x] Covers login/register/logout, cart add/remove/delete/clear + out-of-stock rejection, model `__str__`/validators, view permission boundaries (anonymous → redirected to login). The stock-race test is explicitly scoped to sequential logic, not true concurrency — see the test's docstring for why a meaningful threaded test needs Postgres, not SQLite.
+- [x] `manage.py test` + `manage.py check` wired into `.github/workflows/tests.yml`, verified against real GitHub Actions runners (not just locally) — checked the actual run at `gh pr checks`, not assumed.
 
-- [ ] `coffeeapp/tests.py` and add a `users/tests.py` (doesn't exist yet).
-- [ ] Cover, in priority order: (1) login/register/logout flow, (2) cart add/remove/checkout including the stock-race case above, (3) model `__str__`/validation, (4) view permissions (e.g. can an anonymous user reach checkout?).
-- [ ] Use Django's `TestCase` + `Client()`; no need for a separate test framework at this scale.
-- [ ] Wire `manage.py test` into a CI workflow (GitHub Actions) so it runs on every PR — currently nothing runs tests automatically because there's no CI config in the repo at all.
+## Phase 5 — Static/media & deployment shape ✅ done (BL-11..BL-14)
 
-## Phase 5 — Static/media & deployment shape
-
-- [ ] Set `STATIC_ROOT` and run `collectstatic` — not configured yet, needed for any real deployment (dev server serving static files via `APP_DIRS` doesn't work in production).
-- [ ] Add `whitenoise` (or a CDN/object storage) to actually serve static files in production; Django's dev server is not meant to.
-- [ ] If you add `ImageField` for coffee photos (Phase 2), configure `MEDIA_ROOT`/`MEDIA_URL` and decide on storage backend (local disk vs. S3-compatible) before the first real upload happens.
-- [ ] Move off SQLite for any real deployment — fine for dev/single-user, but no concurrent-write story for production traffic. Postgres is the standard choice for Django.
-- [ ] Add `gunicorn`/`uvicorn` + a process manager for actually running this outside `runserver`.
+- [x] `STATIC_ROOT` set, `collectstatic` runs clean, `whitenoise` wired into `MIDDLEWARE` + `STORAGES`.
+  - **Found and fixed a real bug while verifying**: `STATICFILES_DIRS` was never configured, so the project-level `static/` dir was invisible to Django's finders/`collectstatic` — silently tolerated in dev (default storage doesn't check file existence before building a `{% static %}` URL) but would 500 *every page on the site* once manifest-based storage (whitenoise) validated against it. Caught this by actually testing `DEBUG=False` end-to-end (`django.test.Client` + a real `gunicorn` process), not by assuming the config was correct.
+  - Also added `coffee/storage.py`'s `ForgivingManifestStaticFilesStorage` (`manifest_strict = False`) as defense-in-depth against any *future* missing static reference doing the same thing.
+- [x] Media storage (`MEDIA_ROOT`/`MEDIA_URL`) — **not needed**: BL-01 kept `Coffee.image` as `URLField` rather than switching to `ImageField`, so there's no local upload storage to configure.
+- [x] Postgres: added `psycopg[binary]` to `requirements.txt`. Actually verified against a real local Postgres 18 instance (not just assumed compatible) — all migrations apply clean from zero, `manage.py check`/`test` (all 27) pass against it, and confirmed `has_select_for_update = True` on Postgres (unlike SQLite), meaning the Phase 3 stock guard's row locking actually takes effect once this is the production DB. `DATABASE_URL` (env-driven since Phase 0) is all that needs to change; SQLite stays the local dev default.
+- [x] `gunicorn` added to `requirements.txt`, `Procfile` added (`web: gunicorn coffee.wsgi:application --bind 0.0.0.0:$PORT`, `release: python manage.py migrate`) — verified it actually serves real requests, including whitenoise-served static files, under `DEBUG=False`.
 
 ## Phase 6 — Polish & performance (do after the above, not before)
 
