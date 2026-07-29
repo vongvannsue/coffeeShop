@@ -63,11 +63,21 @@ class CartItem(models.Model):
 # items were added to cart (see CartItem above); placing an order confirms
 # that reservation rather than touching Coffee.quantity again.
 class Order(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        PREPARING = 'preparing', 'Preparing'
+        READY = 'ready', 'Ready'
+        COMPLETED = 'completed', 'Completed'
+        CANCELLED = 'cancelled', 'Cancelled'
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
     placed_at = models.DateTimeField(auto_now_add=True)
     subtotal = models.FloatField()
     tax = models.FloatField()
     total = models.FloatField()
+    # Free-form (MB-02 decision): any status settable at any time, no
+    # enforced sequence — staff are trusted not to mis-click.
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
 
     class Meta:
         ordering = ['-placed_at']
