@@ -27,10 +27,13 @@ def Biography_views(request):
 @login_required
 def cart_detail(request):
     cart, _ = Cart.objects.get_or_create(user=request.user)
-    cart_items = cart.items.select_related('coffee_item').all()
+    # Evaluate once into a list so both the template loop and the total
+    # below reuse this same select_related'd result - Cart.total_price
+    # would otherwise run its own separate, unoptimized query per item.
+    cart_items = list(cart.items.select_related('coffee_item').all())
     return render(request, 'cart_detail.html', {
         'cart_items': cart_items,
-        'total_price': cart.total_price,
+        'total_price': sum(item.total_price for item in cart_items),
     })
 
 

@@ -2,7 +2,9 @@ from datetime import date
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from coffeeapp.models import Biography, CartItem, Coffee
@@ -194,3 +196,26 @@ class CartFlowTests(TestCase):
         self.assertContains(resp, 'out of stock')
         item = CartItem.objects.get(cart__user=self.user, coffee_item=self.coffee)
         self.assertEqual(item.quantity, 1)
+
+    def test_cart_detail_query_count_does_not_grow_with_item_count(self):
+        # cart_detail's select_related('coffee_item') should mean the
+        # query count for rendering the cart doesn't grow with the number
+        # of distinct items in it - an N+1 regression would add one query
+        # per item. Compares counts rather than asserting a fixed magic
+        # number, since the exact count includes auth/session queries
+        # unrelated to this and would be brittle to pin down directly.
+        self.client.post(reverse('add_to_cart', args=[self.coffee.id]))
+        with CaptureQueriesContext(connection) as one_item:
+            self.client.get(reverse('cart_detail'))
+
+        coffee2 = Coffee.objects.create(name='Latte', price=3.5, quantity=5, image='https://example.com/l.jpg')
+        coffee3 = Coffee.objects.create(name='Mocha', price=4.0, quantity=5, image='https://example.com/m.jpg')
+        self.client.post(reverse('add_to_cart', args=[coffee2.id]))
+        self.client.post(reverse('add_to_cart', args=[coffee3.id]))
+        with CaptureQueriesContext(connection) as three_items:
+            self.client.get(reverse('cart_detail'))
+
+        self.assertEqual(
+            len(one_item), len(three_items),
+            "cart_detail query count grew with item count - N+1 regression in select_related('coffee_item')",
+        )
