@@ -56,6 +56,44 @@ class CartItem(models.Model):
     def total_price(self):
         return self.coffee_item.price * self.quantity
 
+
+# Order models — a permanent record of a placed order, snapshotting name/
+# price on each line so history stays correct even if the Coffee item is
+# later renamed, repriced, or deleted. Stock was already decremented when
+# items were added to cart (see CartItem above); placing an order confirms
+# that reservation rather than touching Coffee.quantity again.
+class Order(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
+    placed_at = models.DateTimeField(auto_now_add=True)
+    subtotal = models.FloatField()
+    tax = models.FloatField()
+    total = models.FloatField()
+
+    class Meta:
+        ordering = ['-placed_at']
+
+    def __str__(self):
+        return f'Order #{self.id} — {self.user.username}'
+
+    @property
+    def display_number(self):
+        return f'HB-{self.id:04d}'
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    coffee_item = models.ForeignKey(Coffee, on_delete=models.SET_NULL, null=True, related_name='order_items')
+    name = models.CharField(max_length=255)
+    price = models.FloatField()
+    quantity = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f'{self.quantity} x {self.name}'
+
+    @property
+    def line_total(self):
+        return self.price * self.quantity
+
 # Biography models
 class Biography(models.Model):
     name = models.CharField(max_length=255)

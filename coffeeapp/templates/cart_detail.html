@@ -52,10 +52,13 @@
                 </form>
             </div>
             <div class="checkout-block" style="padding-top:0">
-                <button type="button" class="btn-checkout" disabled title="Checkout isn't wired up yet">
-                    <span>Place Order</span>
-                    <span class="amt tabular">${{ total_price|floatformat:2 }}</span>
-                </button>
+                <form action="{% url 'place_order' %}" method="post" style="display:contents">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-checkout">
+                        <span>Place Order</span>
+                        <span class="amt tabular">${{ total_price|floatformat:2 }}</span>
+                    </button>
+                </form>
             </div>
         {% else %}
             <div class="order-empty">

@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .models import Cart, CartItem, Coffee, Biography
+from .models import Cart, CartItem, Coffee, Biography, Order, OrderItem
 
 PAGE_SIZE = 12
 
@@ -71,6 +71,13 @@ def Biography_views(request):
 
 TAX_RATE = 0.08
 
+
+def _cart_totals(cart_items):
+    subtotal = sum(item.total_price for item in cart_items)
+    tax = subtotal * TAX_RATE
+    return subtotal, tax, subtotal + tax
+
+
 @login_required
 def cart_detail(request):
     cart, _ = Cart.objects.get_or_create(user=request.user)
@@ -78,14 +85,13 @@ def cart_detail(request):
     # below reuse this same select_related'd result - Cart.total_price
     # would otherwise run its own separate, unoptimized query per item.
     cart_items = list(cart.items.select_related('coffee_item').all())
-    subtotal = sum(item.total_price for item in cart_items)
-    tax = subtotal * TAX_RATE
+    subtotal, tax, total = _cart_totals(cart_items)
     return render(request, 'cart_detail.html', {
         'cart_items': cart_items,
         'subtotal': subtotal,
         'tax': tax,
         'tax_rate_pct': int(TAX_RATE * 100),
-        'total_price': subtotal + tax,
+        'total_price': total,
     })
 
 
@@ -150,3 +156,44 @@ def clear_cart(request):
             coffee_item.save(update_fields=['quantity'])
         cart.items.all().delete()
     return redirect('cart_detail')
+
+
+@login_required
+@require_POST
+def place_order(request):
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    cart_items = list(cart.items.select_related('coffee_item').all())
+    if not cart_items:
+        messages.error(request, "Your cart is empty.")
+        return redirect('cart_detail')
+
+    subtotal, tax, total = _cart_totals(cart_items)
+
+    with transaction.atomic():
+        order = Order.objects.create(user=request.user, subtotal=subtotal, tax=tax, total=total)
+        OrderItem.objects.bulk_create([
+            OrderItem(
+                order=order,
+                coffee_item=item.coffee_item,
+                name=item.coffee_item.name,
+                price=item.coffee_item.price,
+                quantity=item.quantity,
+            )
+            for item in cart_items
+        ])
+        # Stock was already decremented when these were added to cart (see
+        # add_to_cart) - placing the order confirms that reservation, so
+        # clear the cart without restoring quantity (unlike remove/delete/
+        # clear, which represent changing your mind, not completing a sale).
+        cart.items.all().delete()
+
+    return redirect('order_confirmation', order_id=order.id)
+
+
+@login_required
+def order_confirmation(request, order_id):
+    order = get_object_or_404(
+        Order.objects.prefetch_related('items').filter(user=request.user),
+        id=order_id,
+    )
+    return render(request, 'order_confirmation.html', {'order': order})

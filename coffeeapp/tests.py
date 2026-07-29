@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from coffeeapp.models import Biography, CartItem, Coffee
+from coffeeapp.models import Biography, CartItem, Coffee, Order
 
 
 class CoffeeModelTests(TestCase):
@@ -261,3 +261,80 @@ class CartFlowTests(TestCase):
             len(one_item), len(three_items),
             "cart_detail query count grew with item count - N+1 regression in select_related('coffee_item')",
         )
+
+
+class CheckoutTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='checkout_user', password='strongpass123')
+        self.client.login(username='checkout_user', password='strongpass123')
+        self.coffee = Coffee.objects.create(name='Espresso', price=2.5, quantity=5, image='https://example.com/e.jpg')
+        self.coffee2 = Coffee.objects.create(name='Latte', price=3.5, quantity=5, image='https://example.com/l.jpg')
+
+    def test_empty_cart_cannot_check_out(self):
+        # A brand-new user has no Cart row at all yet - place_order must
+        # not 404 on that (it originally did; get_object_or_404 on Cart
+        # instead of get_or_create, caught via a real end-to-end request).
+        resp = self.client.post(reverse('place_order'), follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'cart is empty')
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_place_order_requires_post(self):
+        resp = self.client.get(reverse('place_order'))
+        self.assertEqual(resp.status_code, 405)
+
+    def test_place_order_creates_order_and_snapshots_items(self):
+        self.client.post(reverse('add_to_cart', args=[self.coffee.id]))
+        self.client.post(reverse('add_to_cart', args=[self.coffee2.id]))
+        self.client.post(reverse('add_to_cart', args=[self.coffee2.id]))
+
+        resp = self.client.post(reverse('place_order'))
+        order = Order.objects.get(user=self.user)
+        self.assertRedirects(resp, reverse('order_confirmation', args=[order.id]))
+
+        items = {i.name: i.quantity for i in order.items.all()}
+        self.assertEqual(items, {'Espresso': 1, 'Latte': 2})
+        self.assertAlmostEqual(order.subtotal, 2.5 + 3.5 * 2)
+        self.assertAlmostEqual(order.tax, order.subtotal * 0.08)
+        self.assertAlmostEqual(order.total, order.subtotal + order.tax)
+
+    def test_place_order_clears_cart_without_restoring_stock(self):
+        self.client.post(reverse('add_to_cart', args=[self.coffee.id]))
+        self.client.post(reverse('place_order'))
+
+        self.coffee.refresh_from_db()
+        self.assertEqual(self.coffee.quantity, 4, "stock should stay reserved, not bounce back on checkout")
+        self.assertEqual(CartItem.objects.filter(cart__user=self.user).count(), 0)
+
+    def test_order_survives_source_item_deletion(self):
+        self.client.post(reverse('add_to_cart', args=[self.coffee.id]))
+        self.client.post(reverse('place_order'))
+        order = Order.objects.get(user=self.user)
+
+        self.coffee.delete()
+
+        order.refresh_from_db()
+        item = order.items.first()
+        self.assertIsNone(item.coffee_item)
+        self.assertEqual(item.name, 'Espresso')  # snapshot survives even though the source row is gone
+        self.assertEqual(order.items.count(), 1)
+
+    def test_confirmation_page_is_owner_only(self):
+        self.client.post(reverse('add_to_cart', args=[self.coffee.id]))
+        self.client.post(reverse('place_order'))
+        order = Order.objects.get(user=self.user)
+
+        User.objects.create_user(username='someone_else', password='strongpass123')
+        other_client = self.client_class()
+        other_client.login(username='someone_else', password='strongpass123')
+        resp = other_client.get(reverse('order_confirmation', args=[order.id]))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_confirmation_page_requires_login(self):
+        self.client.post(reverse('add_to_cart', args=[self.coffee.id]))
+        self.client.post(reverse('place_order'))
+        order = Order.objects.get(user=self.user)
+
+        self.client.logout()
+        resp = self.client.get(reverse('order_confirmation', args=[order.id]))
+        self.assertRedirects(resp, f"{reverse('login')}?next={reverse('order_confirmation', args=[order.id])}")

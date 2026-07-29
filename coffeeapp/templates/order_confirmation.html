@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Order {{ order.display_number }} — Hearth &amp; Bean{% endblock %}
+
+{% block content %}
+<div class="order-page">
+    <div class="order-ticket">
+        <div class="order-confirm">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <h1>Order placed</h1>
+            <p>We're firing your ticket now &mdash;</p>
+            <p class="confirm-code tabular">#{{ order.display_number }}</p>
+        </div>
+
+        <div class="order-list">
+            {% for item in order.items.all %}
+            <div class="order-line">
+                <span class="order-line-name">{{ item.name }}</span>
+                <span class="order-line-price tabular">${{ item.line_total|floatformat:2 }}</span>
+                <span class="order-line-unit">{{ item.quantity }} &times; ${{ item.price|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="order-totals">
+            <div class="total-row"><span>Subtotal</span><span class="tabular">${{ order.subtotal|floatformat:2 }}</span></div>
+            <div class="total-row"><span>Tax</span><span class="tabular">${{ order.tax|floatformat:2 }}</span></div>
+            <div class="total-row total-final"><span>Total</span><span class="tabular">${{ order.total|floatformat:2 }}</span></div>
+        </div>
+
+        <div class="checkout-block">
+            <a href="{% url 'home' %}" class="btn-checkout">
+                <span>Back to Menu</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
