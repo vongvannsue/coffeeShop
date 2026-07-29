@@ -2,56 +2,7 @@
 
 {% block title %}Our Products{% endblock %}
 
-{% block extra_head %}
-<style>
-    .product-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 20px;
-    }
-    .product-card {
-        background-color: white;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease;
-    }
-    .product-card:hover {
-        transform: translateY(-5px);
-    }
-    .product-card img {
-        width: 100%;
-        height: 180px;
-        object-fit: cover;
-    }
-    .product-info {
-        padding: 15px;
-    }
-    .product-info h2 {
-        font-size: 1.2rem;
-        margin: 0 0 10px;
-    }
-    .product-info p {
-        margin: 5px 0;
-    }
-    .product-info form {
-        margin-top: 10px;
-    }
-    .product-info button {
-        width: 100%;
-        padding: 8px;
-        border: none;
-        border-radius: 5px;
-        background-color: #0066cc;
-        color: white;
-        cursor: pointer;
-    }
-    .product-info button:disabled {
-        background-color: #aaa;
-        cursor: not-allowed;
-    }
-</style>
-{% endblock %}
+{% block body_class %}page-coffee{% endblock %}
 
 {% block content %}
     <h1 class="text-center mb-4">Our Products</h1>
