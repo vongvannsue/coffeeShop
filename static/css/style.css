@@ -1,7 +1,166 @@
-/* Global stylesheet - currently a placeholder. BL-18 consolidates the
-   three different visual styles in this codebase (Bootstrap navbar,
-   plain custom CSS on coffee/biography pages, a third custom palette on
-   login/register) here. Must not be empty - Django's collectstatic
-   silently skips zero-byte files entirely (not copied to STATIC_ROOT at
-   all), which crashes ManifestStaticFilesStorage-backed serving (used in
-   production via whitenoise) on every page that references it. */
+/* Global stylesheet - consolidates styles previously duplicated as inline
+   <style> blocks across coffee.html, biography.html, login.html, and
+   register.html (BL-18). Page-specific rules are scoped under a body
+   class (set via base.html's {% block body_class %}) rather than left as
+   bare element selectors - login.html and register.html both defined
+   .form-submit/.form-with-validation with different rules, and
+   biography.html's unscoped table/th/td would otherwise leak into
+   cart_detail.html's Bootstrap table once this became a global sheet. */
+
+/* Coffee product grid (home page) */
+.page-coffee .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+.page-coffee .product-card {
+    background-color: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+.page-coffee .product-card:hover {
+    transform: translateY(-5px);
+}
+.page-coffee .product-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+.page-coffee .product-info {
+    padding: 15px;
+}
+.page-coffee .product-info h2 {
+    font-size: 1.2rem;
+    margin: 0 0 10px;
+}
+.page-coffee .product-info p {
+    margin: 5px 0;
+}
+.page-coffee .product-info form {
+    margin-top: 10px;
+}
+.page-coffee .product-info button {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    background-color: #0066cc;
+    color: white;
+    cursor: pointer;
+}
+.page-coffee .product-info button:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+}
+
+/* Biography table */
+.page-biography table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 25px;
+}
+.page-biography th,
+.page-biography td {
+    border: 1px solid #aaa;
+    padding: 10px;
+    text-align: left;
+}
+.page-biography th {
+    background-color: #eee;
+}
+
+/* Login page */
+.page-login .login-container {
+    max-width: 400px;
+    margin: 60px auto;
+    padding: 30px;
+    background-color: #f4f4f4;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+.page-login h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 25px;
+}
+.page-login .form-with-validation label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+    color: #333;
+}
+.page-login .form-with-validation input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #aaa;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+.page-login .form-submit {
+    width: 100%;
+    margin-top: 25px;
+    padding: 12px;
+    background-color: #007bff;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+.page-login .form-submit:hover {
+    background-color: #0056b3;
+}
+
+/* Register page */
+.page-register .register-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 25px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.page-register h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+.page-register .form-with-validation label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+.page-register .form-with-validation input,
+.page-register .form-with-validation select,
+.page-register .form-with-validation textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 4px;
+    border: 1px solid #aaa;
+    box-sizing: border-box;
+}
+.page-register .form-submit {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #0066cc;
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.page-register .form-submit:hover {
+    background-color: #005bb5;
+}
