@@ -61,8 +61,50 @@ time rather than pre-planning every issue before Phase 1 has shipped.
 
 ---
 
+## Phase 2 — Order / POS management
+
+### MB-02
+- **Title**: Add Order status field and staff status management
+- **Type**: `feat`
+- **Depends on**: MB-01 (Barista/Manager `change_order` permission gates
+  who can move status)
+- **Decision recorded (confirmed 2026-07-29, in PR description)**:
+  status transitions are **free-form** — any status settable at any time
+  via the admin dropdown or bulk actions, no enforced sequence and no
+  validation in `Order.save()`/`clean()`. Least code, matches the
+  "lean on admin" architecture decision; accepted tradeoff is that staff
+  could mis-click an order from `pending` straight to `completed` or back
+  from `completed` to `pending` with nothing stopping them.
+- **Acceptance criteria**:
+  - [ ] `Order.status` field added: `CharField` with choices
+        (`pending`/`preparing`/`ready`/`completed`/`cancelled`), default
+        `pending`, `db_index=True` (used immediately by `list_filter`,
+        not speculative). Migration generated and applied; existing
+        `Order` rows backfill to `pending` via the field default.
+  - [ ] Checkout (`coffeeapp/views.py`'s order-placement view, #14)
+        needs no changes — it doesn't pass `status` explicitly, so new
+        orders get `pending` automatically from the model default.
+  - [ ] `OrderAdmin.list_display` shows a colour-coded status badge (not
+        plain text) so staff can scan a list of orders at a glance;
+        `list_filter` includes `status`.
+  - [ ] Four bulk admin actions: mark selected as
+        preparing/ready/completed/cancelled. Gated by Django's normal
+        `change_order` permission check (no extra gating needed — Barista
+        and Manager already have it from MB-01).
+  - [ ] Known, accepted limitations (not fixed in this issue): no
+        live/auto-refresh (staff must reload to see new orders); no
+        optimistic locking (concurrent edits to the same order, last
+        write wins).
+  - [ ] Tests: new `Order` defaults to `pending`; each bulk action updates
+        status only for selected orders, exercised as a `Barista`-group
+        staff user (proves the MB-01 permission actually authorizes this,
+        not just that the action code runs).
+  - [ ] `manage.py check` and `manage.py test` pass.
+
+---
+
 ## Not yet broken down
 
-Phases 2–5 of `MANAGEMENT_TODO.md` (order status/POS, inventory, reporting,
-polish) will get their own `MB-NN` entries here when each phase starts, per
-`CLAUDE.md`'s one-issue-at-a-time workflow — not pre-planned now.
+Phases 3–5 of `MANAGEMENT_TODO.md` (inventory, reporting, polish) will get
+their own `MB-NN` entries here when each phase starts, per `CLAUDE.md`'s
+one-issue-at-a-time workflow — not pre-planned now.

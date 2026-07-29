@@ -1,6 +1,6 @@
 from datetime import date
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import TestCase
@@ -338,3 +338,44 @@ class CheckoutTests(TestCase):
         self.client.logout()
         resp = self.client.get(reverse('order_confirmation', args=[order.id]))
         self.assertRedirects(resp, f"{reverse('login')}?next={reverse('order_confirmation', args=[order.id])}")
+
+
+class OrderStatusManagementTests(TestCase):
+    """MB-02: status defaults + staff bulk actions, exercised via the
+    Barista group's change_order permission granted in MB-01."""
+
+    def setUp(self):
+        buyer = User.objects.create_user(username='status_buyer', password='strongpass123')
+        self.order1 = Order.objects.create(user=buyer, subtotal=5, tax=0.5, total=5.5)
+        self.order2 = Order.objects.create(user=buyer, subtotal=3, tax=0.3, total=3.3)
+
+        barista = User.objects.create_user(username='barista_ops', password='strongpass123', is_staff=True)
+        barista.groups.add(Group.objects.get(name='Barista'))
+        self.client.login(username='barista_ops', password='strongpass123')
+
+    def test_new_order_defaults_to_pending(self):
+        self.assertEqual(self.order1.status, Order.Status.PENDING)
+
+    def test_bulk_actions_set_expected_status(self):
+        for action, expected in [
+            ('mark_preparing', Order.Status.PREPARING),
+            ('mark_ready', Order.Status.READY),
+            ('mark_completed', Order.Status.COMPLETED),
+            ('mark_cancelled', Order.Status.CANCELLED),
+        ]:
+            self.client.post(reverse('admin:coffeeapp_order_changelist'), {
+                'action': action,
+                '_selected_action': [str(self.order1.pk)],
+            })
+            self.order1.refresh_from_db()
+            self.assertEqual(self.order1.status, expected)
+
+    def test_bulk_action_only_touches_selected_orders(self):
+        self.client.post(reverse('admin:coffeeapp_order_changelist'), {
+            'action': 'mark_completed',
+            '_selected_action': [str(self.order1.pk)],
+        })
+        self.order1.refresh_from_db()
+        self.order2.refresh_from_db()
+        self.assertEqual(self.order1.status, Order.Status.COMPLETED)
+        self.assertEqual(self.order2.status, Order.Status.PENDING)
