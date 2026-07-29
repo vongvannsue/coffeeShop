@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
@@ -6,8 +6,9 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
-from coffeeapp.models import Biography, CartItem, Coffee, Order
+from coffeeapp.models import Biography, CartItem, Coffee, Order, OrderItem
 
 
 class CoffeeModelTests(TestCase):
@@ -424,3 +425,65 @@ class CoffeeRestockTests(TestCase):
 
         self.espresso.refresh_from_db()
         self.assertEqual(self.espresso.quantity, 3)
+
+
+class SalesDashboardTests(TestCase):
+    """MB-04: dashboard access is gated on coffeeapp.view_dashboard
+    (granted to Manager only), and metrics only count completed orders."""
+
+    def setUp(self):
+        buyer = User.objects.create_user(username='dash_buyer', password='strongpass123')
+
+        self.recent_completed = Order.objects.create(
+            user=buyer, subtotal=10, tax=1, total=11, status=Order.Status.COMPLETED,
+        )
+        OrderItem.objects.create(order=self.recent_completed, name='Latte', price=3.5, quantity=2)
+        OrderItem.objects.create(order=self.recent_completed, name='Espresso', price=2.5, quantity=1)
+
+        # Not completed - must be excluded from totals regardless of range.
+        Order.objects.create(user=buyer, subtotal=5, tax=0.5, total=5.5, status=Order.Status.PENDING)
+
+        old_completed = Order.objects.create(
+            user=buyer, subtotal=20, tax=2, total=22, status=Order.Status.COMPLETED,
+        )
+        OrderItem.objects.create(order=old_completed, name='Latte', price=3.5, quantity=5)
+        Order.objects.filter(pk=old_completed.pk).update(placed_at=timezone.now() - timedelta(days=60))
+
+        self.manager = User.objects.create_user(
+            username='dash_manager', password='strongpass123', is_staff=True,
+        )
+        self.manager.groups.add(Group.objects.get(name='Manager'))
+
+        self.barista = User.objects.create_user(
+            username='dash_barista', password='strongpass123', is_staff=True,
+        )
+        self.barista.groups.add(Group.objects.get(name='Barista'))
+
+    def test_anonymous_redirected_to_login(self):
+        resp = self.client.get(reverse('admin:dashboard'))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_barista_cannot_access_dashboard(self):
+        self.client.login(username='dash_barista', password='strongpass123')
+        resp = self.client.get(reverse('admin:dashboard'))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_manager_totals_only_count_completed_orders(self):
+        self.client.login(username='dash_manager', password='strongpass123')
+        resp = self.client.get(reverse('admin:dashboard'), {'range': 'all'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertAlmostEqual(resp.context['total_sales'], 11 + 22)
+        self.assertEqual(resp.context['order_count'], 2)
+
+    def test_range_filter_excludes_old_orders(self):
+        self.client.login(username='dash_manager', password='strongpass123')
+        resp = self.client.get(reverse('admin:dashboard'), {'range': 'month'})
+        self.assertAlmostEqual(resp.context['total_sales'], 11)
+        self.assertEqual(resp.context['order_count'], 1)
+
+    def test_best_sellers_ranked_by_quantity(self):
+        self.client.login(username='dash_manager', password='strongpass123')
+        resp = self.client.get(reverse('admin:dashboard'), {'range': 'all'})
+        best = list(resp.context['best_sellers'])
+        self.assertEqual(best[0]['name'], 'Latte')
+        self.assertEqual(best[0]['units'], 7)

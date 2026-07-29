@@ -107,8 +107,11 @@ class RoleGroupPermissionTests(TestCase):
         self.assertEqual(codenames, {'view_order', 'change_order', 'view_orderitem'})
 
     def test_manager_group_has_expected_permissions(self):
+        # view_dashboard granted separately by MB-04's own migration, not
+        # MB-01's - listed here too since this asserts the group's full,
+        # current permission set.
         codenames = set(Group.objects.get(name='Manager').permissions.values_list('codename', flat=True))
         self.assertEqual(
             codenames,
-            {'view_order', 'change_order', 'view_orderitem', 'view_coffee', 'change_coffee'},
+            {'view_order', 'change_order', 'view_orderitem', 'view_coffee', 'change_coffee', 'view_dashboard'},
         )

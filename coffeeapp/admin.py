@@ -1,10 +1,18 @@
+from datetime import timedelta
+
 from django.contrib import admin
-from django.db.models import F
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count, F, Sum
+from django.db.models.functions import TruncDate
+from django.template.response import TemplateResponse
+from django.urls import path
+from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import Coffee, Biography, Order, OrderItem
 
 RESTOCK_INCREMENT = 10
+DASHBOARD_RANGES = ('today', 'week', 'month', 'all')
 
 STATUS_COLORS = {
     Order.Status.PENDING: '#6c757d',
@@ -90,3 +98,68 @@ class OrderAdmin(admin.ModelAdmin):
 admin.site.register(Coffee, CoffeeAdmin)
 admin.site.register(Biography, BiographyAdmin)
 admin.site.register(Order, OrderAdmin)
+
+
+# Sales dashboard (MB-04) — gated on the custom coffeeapp.view_dashboard
+# permission (Order.Meta.permissions), not a hardcoded group-name check,
+# to stay consistent with how every other MB-0x issue gates access
+# through real Permission objects. Registered by wrapping
+# admin.site.get_urls() rather than a full AdminSite subclass, since this
+# project registers models on the default admin.site everywhere else.
+def dashboard_view(request):
+    if not request.user.has_perm('coffeeapp.view_dashboard'):
+        raise PermissionDenied
+
+    range_key = request.GET.get('range', 'today')
+    if range_key not in DASHBOARD_RANGES:
+        range_key = 'today'
+
+    completed = Order.objects.filter(status=Order.Status.COMPLETED)
+    if range_key != 'all':
+        now = timezone.now()
+        since = {
+            'today': now.replace(hour=0, minute=0, second=0, microsecond=0),
+            'week': now - timedelta(days=7),
+            'month': now - timedelta(days=30),
+        }[range_key]
+        completed = completed.filter(placed_at__gte=since)
+
+    totals = completed.aggregate(total_sales=Sum('total'), order_count=Count('id'))
+
+    best_sellers = (
+        OrderItem.objects.filter(order__in=completed)
+        .values('name')
+        .annotate(units=Sum('quantity'))
+        .order_by('-units')[:10]
+    )
+
+    revenue_by_day = (
+        completed.annotate(day=TruncDate('placed_at'))
+        .values('day')
+        .annotate(revenue=Sum('total'))
+        .order_by('day')
+    )
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Sales Dashboard',
+        'range_key': range_key,
+        'ranges': DASHBOARD_RANGES,
+        'total_sales': totals['total_sales'] or 0,
+        'order_count': totals['order_count'] or 0,
+        'best_sellers': best_sellers,
+        'revenue_by_day': revenue_by_day,
+    }
+    return TemplateResponse(request, 'admin/coffeeapp/dashboard.html', context)
+
+
+_wrapped_get_urls = admin.site.get_urls
+
+
+def _get_urls_with_dashboard():
+    return [
+        path('dashboard/', admin.site.admin_view(dashboard_view), name='dashboard'),
+    ] + _wrapped_get_urls()
+
+
+admin.site.get_urls = _get_urls_with_dashboard
