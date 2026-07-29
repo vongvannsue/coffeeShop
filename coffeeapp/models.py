@@ -9,10 +9,18 @@ phone_validator = RegexValidator(
 
 # Coffee models
 class Coffee(models.Model):
+    class Category(models.TextChoices):
+        ESPRESSO = 'espresso', 'Espresso'
+        COLD_BREW = 'coldbrew', 'Cold Brew'
+        PASTRIES = 'pastries', 'Pastries'
+        BEANS = 'beans', 'Beans'
+        OFFERS = 'offers', 'Special Offers'
+
     name = models.CharField(max_length=255)
     price = models.FloatField()
     quantity = models.IntegerField()
     image = models.URLField()
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.ESPRESSO)
 
     def __str__(self):
         return self.name

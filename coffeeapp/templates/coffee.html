@@ -1,31 +1,68 @@
 {% extends 'base.html' %}
 
-{% block title %}Our Products{% endblock %}
-
-{% block body_class %}page-coffee{% endblock %}
+{% block title %}{{ active_category_label }} — Hearth &amp; Bean{% endblock %}
 
 {% block content %}
-    <h1 class="text-center mb-4">Our Products</h1>
+<nav class="category-pills" aria-label="Menu categories">
+    {% for cat in categories %}
+    <a class="pill-link{% if cat.key == active_category %} active{% endif %}" href="{% querystring category=cat.key page=None %}">
+        {% include '_category_icon.html' with cat_key=cat.key %}
+        <span>{{ cat.label }}</span>
+    </a>
+    {% endfor %}
+</nav>
 
-    <div class="product-grid">
-        {% for item in coffee %}
-        <div class="product-card">
-            <img src="{{ item.image }}" alt="{{ item.name }}">
-            <div class="product-info">
-                <h2>{{ item.name }}</h2>
-                <p><strong>Price:</strong> ${{ item.price }}</p>
-                <p><strong>Quantity:</strong> {{ item.quantity }}</p>
+<div class="shell">
+    <nav class="category-rail" aria-label="Menu categories">
+        <span class="rail-label">Categories</span>
+        {% for cat in categories %}
+        <a class="cat-link{% if cat.key == active_category %} active{% endif %}" href="{% querystring category=cat.key page=None %}">
+            {% include '_category_icon.html' with cat_key=cat.key %}
+            <span class="cat-name">{{ cat.label }}</span>
+            <span class="cat-count tabular">{{ cat.count }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <main class="menu-main">
+        <div class="menu-header">
+            <span class="menu-eyebrow">{{ category_meta.eyebrow }}</span>
+            <h1>{{ active_category_label }}</h1>
+            <p class="menu-sub">{{ category_meta.sub }}</p>
+        </div>
+
+        <div class="card-grid">
+            {% for item in coffee %}
+            <div class="item-card{% if item.quantity == 0 %} is-sold{% endif %}">
+                <div class="item-visual">
+                    {% if item.quantity == 0 %}
+                        <span class="avail-chip bad"><i class="dot"></i>Sold out</span>
+                    {% elif item.quantity <= 3 %}
+                        <span class="avail-chip warn"><i class="dot"></i>{{ item.quantity }} left today</span>
+                    {% else %}
+                        <span class="avail-chip good"><i class="dot"></i>Available</span>
+                    {% endif %}
+                    {% include '_category_icon.html' with cat_key=active_category %}
+                </div>
+                <div class="item-body">
+                    <div class="item-top-row">
+                        <span class="item-name">{{ item.name }}</span>
+                        <span class="item-price tabular">${{ item.price|floatformat:2 }}</span>
+                    </div>
+                    <span class="item-tag">{{ item.get_category_display }}</span>
+                </div>
                 <form action="{% url 'add_to_cart' item.id %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" {% if item.quantity < 1 %}disabled{% endif %}>
-                        {% if item.quantity < 1 %}Out of stock{% else %}Add to Cart{% endif %}
+                    <button type="submit" class="btn-add"{% if item.quantity == 0 %} disabled{% endif %}>
+                        {% if item.quantity == 0 %}Sold out{% else %}Add to Cart{% endif %}
                     </button>
                 </form>
             </div>
+            {% empty %}
+            <p>Nothing in this category right now — check back soon.</p>
+            {% endfor %}
         </div>
-        {% empty %}
-        <p>No products available.</p>
-        {% endfor %}
-    </div>
-    {% include '_pagination.html' with page_obj=coffee %}
+        {% include '_pagination.html' with page_obj=coffee %}
+    </main>
+</div>
 {% endblock %}

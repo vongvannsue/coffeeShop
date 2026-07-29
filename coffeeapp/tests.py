@@ -45,7 +45,7 @@ class HomeViewTests(TestCase):
     def test_empty_state(self):
         resp = self.client.get(reverse('home'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'No products available')
+        self.assertContains(resp, 'Nothing in this category right now')
 
     def test_lists_coffee(self):
         Coffee.objects.create(name='Mocha', price=4.0, quantity=3, image='https://example.com/mocha.jpg')
@@ -70,6 +70,48 @@ class HomeViewTests(TestCase):
         for page in [999, 0, 'not-a-number']:
             resp = self.client.get(reverse('home'), {'page': page})
             self.assertEqual(resp.status_code, 200)
+
+
+class CategoryFilterTests(TestCase):
+    def setUp(self):
+        Coffee.objects.create(name='Doppio', price=3.25, quantity=5, image='https://example.com/d.jpg', category='espresso')
+        Coffee.objects.create(name='Nitro Cold Brew', price=5.25, quantity=5, image='https://example.com/n.jpg', category='coldbrew')
+        Coffee.objects.create(name='Almond Croissant', price=4.50, quantity=5, image='https://example.com/a.jpg', category='pastries')
+
+    def test_defaults_to_espresso(self):
+        resp = self.client.get(reverse('home'))
+        self.assertContains(resp, 'Doppio')
+        self.assertNotContains(resp, 'Nitro Cold Brew')
+
+    def test_filters_by_requested_category(self):
+        resp = self.client.get(reverse('home'), {'category': 'coldbrew'})
+        self.assertContains(resp, 'Nitro Cold Brew')
+        self.assertNotContains(resp, 'Doppio')
+
+    def test_invalid_category_falls_back_to_espresso(self):
+        resp = self.client.get(reverse('home'), {'category': 'not-a-real-category'})
+        self.assertContains(resp, 'Doppio')
+        self.assertEqual(resp.context['active_category'], 'espresso')
+
+    def test_category_counts_reflect_actual_items(self):
+        resp = self.client.get(reverse('home'))
+        counts = {c['key']: c['count'] for c in resp.context['categories']}
+        self.assertEqual(counts['espresso'], 1)
+        self.assertEqual(counts['coldbrew'], 1)
+        self.assertEqual(counts['pastries'], 1)
+        self.assertEqual(counts['beans'], 0)
+
+    def test_out_of_stock_item_shows_disabled_add_button(self):
+        Coffee.objects.create(name='Sold Out Brew', price=4.0, quantity=0, image='https://example.com/s.jpg', category='coldbrew')
+        resp = self.client.get(reverse('home'), {'category': 'coldbrew'})
+        self.assertContains(resp, 'Sold out')
+        self.assertContains(resp, 'disabled')
+
+    def test_pagination_link_preserves_category(self):
+        for i in range(20):
+            Coffee.objects.create(name=f'Brew {i}', price=1.0, quantity=5, image='https://example.com/x.jpg', category='coldbrew')
+        resp = self.client.get(reverse('home'), {'category': 'coldbrew'})
+        self.assertContains(resp, 'category=coldbrew&amp;page=2')
 
 
 class BiographyViewTests(TestCase):

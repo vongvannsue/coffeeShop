@@ -1,45 +1,50 @@
 {% extends 'base.html' %}
 
-{% block title %}Biography List{% endblock %}
-
-{% block body_class %}page-biography{% endblock %}
+{% block title %}Our Story — Hearth &amp; Bean{% endblock %}
 
 {% block content %}
-    <h1>Biography Information</h1>
+<div class="bio-page">
+    <div class="menu-header">
+        <span class="menu-eyebrow">The people behind the counter</span>
+        <h1>Our Story</h1>
+    </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Gender</th>
-                <th>Place of Birth</th>
-                <th>Date of Birth</th>
-                <th>Role</th>
-                <th>Email</th>
-                <th>Mobile</th>
-                <th>Hobby</th>
-                <th>Language</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in biography %}
-            <tr>
-                <td>{{ item.name }}</td>
-                <td>{{ item.gender }}</td>
-                <td>{{ item.place_of_birth }}</td>
-                <td>{{ item.date_birth|date:"Y-m-d" }}</td>
-                <td>{{ item.role }}</td>
-                <td>{{ item.email }}</td>
-                <td>{{ item.mobile }}</td>
-                <td>{{ item.hobby }}</td>
-                <td>{{ item.language }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="9">No data available.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-wrap">
+        <table class="bio-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Gender</th>
+                    <th>Place of Birth</th>
+                    <th>Date of Birth</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Hobby</th>
+                    <th>Language</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in biography %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.gender }}</td>
+                    <td>{{ item.place_of_birth }}</td>
+                    <td>{{ item.date_birth|date:"Y-m-d" }}</td>
+                    <td>{{ item.role }}</td>
+                    <td>{{ item.email }}</td>
+                    <td>{{ item.mobile }}</td>
+                    <td>{{ item.hobby }}</td>
+                    <td>{{ item.language }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">No data available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% include '_pagination.html' with page_obj=biography %}
+</div>
 {% endblock %}
