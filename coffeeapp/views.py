@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
@@ -8,15 +9,19 @@ from django.views.decorators.http import require_POST
 
 from .models import Cart, CartItem, Coffee, Biography
 
+PAGE_SIZE = 12
+
 # Create your views here.
 def home(request):
     # return HttpResponse("Holle World!")
-    coffee_list = Coffee.objects.all()
-    return render(request, 'coffee.html', {'coffee':coffee_list})
+    paginator = Paginator(Coffee.objects.order_by('id'), PAGE_SIZE)
+    coffee_page = paginator.get_page(request.GET.get('page'))
+    return render(request, 'coffee.html', {'coffee': coffee_page})
 
 def Biography_views(request):
-    biography_list = Biography.objects.all()
-    return render(request, 'biography.html', {'biography':biography_list})
+    paginator = Paginator(Biography.objects.order_by('id'), PAGE_SIZE)
+    biography_page = paginator.get_page(request.GET.get('page'))
+    return render(request, 'biography.html', {'biography': biography_page})
 
 
 @login_required
