@@ -1,7 +1,10 @@
 from django.contrib import admin
+from django.db.models import F
 from django.utils.html import format_html
 
 from .models import Coffee, Biography, Order, OrderItem
+
+RESTOCK_INCREMENT = 10
 
 STATUS_COLORS = {
     Order.Status.PENDING: '#6c757d',
@@ -13,9 +16,26 @@ STATUS_COLORS = {
 
 # coffee
 class CoffeeAdmin(admin.ModelAdmin):
-    list_display = ('name','category','price','quantity','image')
+    list_display = ('name', 'category', 'price', 'stock_badge', 'image')
     list_filter = ('category',)
     search_fields = ('name',)
+    actions = ['restock']
+
+    @admin.display(description='Stock', ordering='quantity')
+    def stock_badge(self, obj):
+        low = obj.quantity <= obj.low_stock_threshold
+        color = '#dc3545' if low else '#198754'
+        label = f'{obj.quantity} (LOW)' if low else str(obj.quantity)
+        return format_html(
+            '<span style="background-color:{}; color:#fff; padding:2px 8px; '
+            'border-radius:4px; font-size:12px;">{}</span>',
+            color, label,
+        )
+
+    @admin.action(description=f'Restock selected (+{RESTOCK_INCREMENT})')
+    def restock(self, request, queryset):
+        updated = queryset.update(quantity=F('quantity') + RESTOCK_INCREMENT)
+        self.message_user(request, f'Restocked {updated} item(s) by +{RESTOCK_INCREMENT}.')
 
 # biography
 class BiographyAdmin(admin.ModelAdmin):
