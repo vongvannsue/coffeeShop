@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Count, F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -11,12 +11,57 @@ from .models import Cart, CartItem, Coffee, Biography
 
 PAGE_SIZE = 12
 
+CATEGORY_META = {
+    Coffee.Category.ESPRESSO: {
+        'eyebrow': 'Pulled to order',
+        'sub': 'Double shots, 18–20g in, 20s pour. Every drink starts here.',
+    },
+    Coffee.Category.COLD_BREW: {
+        'eyebrow': 'Steeped 18 hours',
+        'sub': 'Always over ice, always low-acid. Brewed overnight in small batches.',
+    },
+    Coffee.Category.PASTRIES: {
+        'eyebrow': 'From the oven',
+        'sub': 'Baked fresh before sunrise, gone by early afternoon most days.',
+    },
+    Coffee.Category.BEANS: {
+        'eyebrow': '12oz bags',
+        'sub': 'Roasted Tuesdays and Fridays. Ground to order or whole bean.',
+    },
+    Coffee.Category.OFFERS: {
+        'eyebrow': 'Bundled to save',
+        'sub': 'Pair a drink with something from the case — while supplies last.',
+    },
+}
+
 # Create your views here.
 def home(request):
-    # return HttpResponse("Holle World!")
-    paginator = Paginator(Coffee.objects.order_by('id'), PAGE_SIZE)
+    category_counts = dict(
+        Coffee.objects.values_list('category').annotate(count=Count('id')).order_by()
+    )
+    categories = [
+        {
+            'key': key,
+            'label': label,
+            'count': category_counts.get(key, 0),
+        }
+        for key, label in Coffee.Category.choices
+    ]
+
+    requested = request.GET.get('category')
+    valid_keys = {c['key'] for c in categories}
+    active_category = requested if requested in valid_keys else Coffee.Category.ESPRESSO
+
+    paginator = Paginator(Coffee.objects.filter(category=active_category).order_by('id'), PAGE_SIZE)
     coffee_page = paginator.get_page(request.GET.get('page'))
-    return render(request, 'coffee.html', {'coffee': coffee_page})
+
+    return render(request, 'coffee.html', {
+        'coffee': coffee_page,
+        'categories': categories,
+        'active_category': active_category,
+        'active_category_label': dict(Coffee.Category.choices).get(active_category, ''),
+        'category_meta': CATEGORY_META.get(active_category, {}),
+    })
 
 def Biography_views(request):
     paginator = Paginator(Biography.objects.order_by('id'), PAGE_SIZE)
@@ -24,16 +69,23 @@ def Biography_views(request):
     return render(request, 'biography.html', {'biography': biography_page})
 
 
+TAX_RATE = 0.08
+
 @login_required
 def cart_detail(request):
     cart, _ = Cart.objects.get_or_create(user=request.user)
-    # Evaluate once into a list so both the template loop and the total
+    # Evaluate once into a list so both the template loop and the totals
     # below reuse this same select_related'd result - Cart.total_price
     # would otherwise run its own separate, unoptimized query per item.
     cart_items = list(cart.items.select_related('coffee_item').all())
+    subtotal = sum(item.total_price for item in cart_items)
+    tax = subtotal * TAX_RATE
     return render(request, 'cart_detail.html', {
         'cart_items': cart_items,
-        'total_price': sum(item.total_price for item in cart_items),
+        'subtotal': subtotal,
+        'tax': tax,
+        'tax_rate_pct': int(TAX_RATE * 100),
+        'total_price': subtotal + tax,
     })
 
 

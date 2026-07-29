@@ -3,7 +3,8 @@ from .models import Coffee, Biography
 
 # coffee
 class CoffeeAdmin(admin.ModelAdmin):
-    list_display = ('name','price','quantity','image')
+    list_display = ('name','category','price','quantity','image')
+    list_filter = ('category',)
     search_fields = ('name',)
 
 # biography

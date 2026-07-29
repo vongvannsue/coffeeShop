@@ -1,21 +1,20 @@
 {% extends 'base.html' %}
 
-{% block title %}User Login{% endblock %}
-
-{% block body_class %}page-login{% endblock %}
+{% block title %}Login — Hearth &amp; Bean{% endblock %}
 
 {% block content %}
-    <div class="login-container">
-        <h1>User Login</h1>
-        <form class="form-with-validation" action="{% url 'login' %}" method="post">
+<div class="auth-page">
+    <div class="auth-card">
+        <h1>Welcome back</h1>
+        <form action="{% url 'login' %}" method="post">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ next }}">
             {{ form }}
-            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
-                <a href="{% url 'register' %}" class="form-submit"
-                   style="background-color: #6c757d; text-align: center; text-decoration: none; padding: 12px;">Register</a>
-                <button type="submit" class="form-submit">Submit</button>
+            <div class="auth-actions">
+                <button type="submit" class="btn-primary-full">Log in</button>
             </div>
         </form>
+        <span class="auth-alt-link">New here? <a href="{% url 'register' %}">Create an account</a></span>
     </div>
+</div>
 {% endblock %}
