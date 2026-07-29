@@ -21,6 +21,9 @@ class Coffee(models.Model):
     quantity = models.IntegerField()
     image = models.URLField()
     category = models.CharField(max_length=20, choices=Category.choices, default=Category.ESPRESSO)
+    # Per-item, not global (MB-03 decision): a bean SKU and a pastry have
+    # very different reorder points.
+    low_stock_threshold = models.PositiveIntegerField(default=5)
 
     def __str__(self):
         return self.name

@@ -103,8 +103,53 @@ time rather than pre-planning every issue before Phase 1 has shipped.
 
 ---
 
+## Phase 3 — Inventory management
+
+### MB-03
+- **Title**: Add low-stock indicator and restock action for Coffee
+- **Type**: `feat`
+- **Depends on**: MB-01 (Manager `change_coffee` permission gates who can
+  restock)
+- **Decisions recorded (confirmed 2026-07-29, in PR description)**:
+  - **No audit log**: restocks and manual quantity edits overwrite
+    `Coffee.quantity` directly, no `StockLog`/history model. Revisit only
+    if there's a confirmed need to know who changed what and when — not
+    built speculatively.
+  - **Per-item threshold**: `Coffee.low_stock_threshold` field (not a
+    single global constant) — a bean SKU and a pastry have very different
+    reorder points.
+  - **Restock UX**: fixed-increment bulk action ("Restock selected
+    (+10)"), not a custom form for an exact quantity — matches the
+    existing bulk-action pattern from MB-02, no new form/template needed.
+- **Acceptance criteria**:
+  - [ ] `Coffee.low_stock_threshold` field added (`PositiveIntegerField`,
+        sensible default). Migration generated and applied.
+  - [ ] `CoffeeAdmin.list_display` shows a colour-coded stock badge
+        (quantity vs. threshold), sortable by quantity
+        (`admin_order_field`).
+  - [ ] Bulk admin action "Restock selected (+10)" — implemented as
+        `queryset.update(quantity=F('quantity') + 10)`, a single atomic
+        `UPDATE` statement per row. **Not** `select_for_update()` +
+        Python read-modify-write — that pattern exists elsewhere
+        (`coffeeapp/views.py`'s cart mutations) because those need to
+        read-then-branch across two related rows in one transaction;
+        restock is a single-field bulk update with no branching, so the
+        DB-level atomic `F()` update alone is sufficient and correct
+        without extra locking.
+  - [ ] Confirmed no naive `quantity += n` read-modify-write race exists
+        anywhere in the new code — this was flagged as a real concurrency
+        risk in `MANAGEMENT_TODO.md` given the existing cart reservation
+        logic touches the same field.
+  - [ ] Tests: threshold/badge logic at the model boundary; restock action
+        increments only the selected `Coffee` rows, exercised as a
+        `Manager`-group staff user (proves the MB-01 permission actually
+        authorizes this).
+  - [ ] `manage.py check` and `manage.py test` pass.
+
+---
+
 ## Not yet broken down
 
-Phases 3–5 of `MANAGEMENT_TODO.md` (inventory, reporting, polish) will get
-their own `MB-NN` entries here when each phase starts, per `CLAUDE.md`'s
+Phases 4–5 of `MANAGEMENT_TODO.md` (reporting, polish) will get their own
+`MB-NN` entries here when each phase starts, per `CLAUDE.md`'s
 one-issue-at-a-time workflow — not pre-planned now.

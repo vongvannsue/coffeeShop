@@ -15,6 +15,10 @@ class CoffeeModelTests(TestCase):
         coffee = Coffee.objects.create(name='Latte', price=3.5, quantity=5, image='https://example.com/latte.jpg')
         self.assertEqual(str(coffee), 'Latte')
 
+    def test_low_stock_threshold_defaults_to_five(self):
+        coffee = Coffee.objects.create(name='Mocha', price=4.0, quantity=20, image='https://example.com/m.jpg')
+        self.assertEqual(coffee.low_stock_threshold, 5)
+
 
 class BiographyModelTests(TestCase):
     def _make(self, **overrides):
@@ -379,3 +383,44 @@ class OrderStatusManagementTests(TestCase):
         self.order2.refresh_from_db()
         self.assertEqual(self.order1.status, Order.Status.COMPLETED)
         self.assertEqual(self.order2.status, Order.Status.PENDING)
+
+
+class CoffeeRestockTests(TestCase):
+    """MB-03: restock bulk action, exercised via the Manager group's
+    change_coffee permission granted in MB-01."""
+
+    def setUp(self):
+        self.espresso = Coffee.objects.create(
+            name='Espresso', price=2.5, quantity=3, image='https://example.com/e.jpg',
+        )
+        self.latte = Coffee.objects.create(
+            name='Latte', price=3.5, quantity=8, image='https://example.com/l.jpg',
+        )
+
+        manager = User.objects.create_user(username='manager_ops', password='strongpass123', is_staff=True)
+        manager.groups.add(Group.objects.get(name='Manager'))
+        self.client.login(username='manager_ops', password='strongpass123')
+
+    def test_restock_action_increments_only_selected(self):
+        self.client.post(reverse('admin:coffeeapp_coffee_changelist'), {
+            'action': 'restock',
+            '_selected_action': [str(self.espresso.pk)],
+        })
+        self.espresso.refresh_from_db()
+        self.latte.refresh_from_db()
+        self.assertEqual(self.espresso.quantity, 13)
+        self.assertEqual(self.latte.quantity, 8)
+
+    def test_barista_cannot_restock(self):
+        # Barista has no change_coffee permission (MB-01) - the action
+        # shouldn't be reachable, and quantity must stay untouched.
+        barista = User.objects.create_user(username='barista_ops2', password='strongpass123', is_staff=True)
+        barista.groups.add(Group.objects.get(name='Barista'))
+        self.client.logout()
+        self.client.login(username='barista_ops2', password='strongpass123')
+
+        resp = self.client.get(reverse('admin:coffeeapp_coffee_changelist'))
+        self.assertEqual(resp.status_code, 403)
+
+        self.espresso.refresh_from_db()
+        self.assertEqual(self.espresso.quantity, 3)
