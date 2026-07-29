@@ -50,6 +50,25 @@ class HomeViewTests(TestCase):
         resp = self.client.get(reverse('home'))
         self.assertContains(resp, 'Mocha')
 
+    def test_pagination_splits_across_pages(self):
+        for i in range(20):
+            Coffee.objects.create(name=f'Coffee {i}', price=1.0, quantity=5, image='https://example.com/x.jpg')
+        page1 = self.client.get(reverse('home'), {'page': 1})
+        page2 = self.client.get(reverse('home'), {'page': 2})
+        self.assertContains(page1, 'Coffee 0')
+        self.assertNotContains(page2, 'Coffee 0')
+        self.assertNotEqual(page1.content, page2.content)
+
+    def test_pagination_out_of_range_page_does_not_crash(self):
+        # Paginator.get_page() should clamp rather than raise EmptyPage -
+        # a naive Page.previous_page_number()/next_page_number() call on a
+        # boundary page raises EmptyPage uncaught by Django's template
+        # engine, so this also guards the _pagination.html include.
+        Coffee.objects.create(name='Solo', price=1.0, quantity=5, image='https://example.com/x.jpg')
+        for page in [999, 0, 'not-a-number']:
+            resp = self.client.get(reverse('home'), {'page': page})
+            self.assertEqual(resp.status_code, 200)
+
 
 class BiographyViewTests(TestCase):
     def test_empty_state(self):
@@ -64,6 +83,15 @@ class BiographyViewTests(TestCase):
         )
         resp = self.client.get(reverse('biography'))
         self.assertContains(resp, 'Sue')
+
+    def test_pagination_out_of_range_page_does_not_crash(self):
+        Biography.objects.create(
+            name='Sue', gender='F', place_of_birth='Kampot', date_birth=date(1995, 5, 5),
+            role='Barista', email='sue@example.com', mobile='+855987654321', hobby='Coffee', language='English',
+        )
+        for page in [999, 0, 'not-a-number']:
+            resp = self.client.get(reverse('biography'), {'page': page})
+            self.assertEqual(resp.status_code, 200)
 
 
 class CartPermissionTests(TestCase):
