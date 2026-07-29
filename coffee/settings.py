@@ -75,6 +75,15 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# django-debug-toolbar: dev-only, gated behind DEBUG rather than a
+# separate requirements-dev.txt, since this project already treats
+# requirements.txt as a single environment-agnostic file. Inert in
+# production regardless (DEBUG defaults to False there since Phase 1).
+if DEBUG and 'test' not in sys.argv:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+    INTERNAL_IPS = ['127.0.0.1']
+
 ROOT_URLCONF = 'coffee.urls'
 
 TEMPLATES = [
