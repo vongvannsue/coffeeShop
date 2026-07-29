@@ -1,7 +1,8 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
+from coffeeapp.models import Coffee, Order
 from users.models import Profile
 
 
@@ -65,3 +66,49 @@ class ProfileBackfillTests(TestCase):
         # register_view, should end up with a Profile.
         user = User.objects.create_user(username='admin_created', password='strongpass123')
         self.assertTrue(Profile.objects.filter(user=user).exists())
+
+
+class RoleGroupPermissionTests(TestCase):
+    """MB-01: Barista/Manager groups, created by the 0003 data migration,
+    must actually gate admin access — not just exist."""
+
+    def setUp(self):
+        self.coffee = Coffee.objects.create(
+            name='Latte', price=4.5, quantity=10, image='https://example.com/latte.jpg',
+        )
+        buyer = User.objects.create_user(username='buyer', password='strongpass123')
+        self.order = Order.objects.create(user=buyer, subtotal=4.5, tax=0.45, total=4.95)
+        self.order_url = reverse('admin:coffeeapp_order_change', args=[self.order.pk])
+        self.coffee_url = reverse('admin:coffeeapp_coffee_change', args=[self.coffee.pk])
+
+    def _staff_user(self, username, group_name=None):
+        user = User.objects.create_user(username=username, password='strongpass123', is_staff=True)
+        if group_name:
+            user.groups.add(Group.objects.get(name=group_name))
+        return user
+
+    def test_barista_can_view_order_not_coffee(self):
+        self.client.force_login(self._staff_user('barista1', 'Barista'))
+        self.assertEqual(self.client.get(self.order_url).status_code, 200)
+        self.assertEqual(self.client.get(self.coffee_url).status_code, 403)
+
+    def test_manager_can_view_both(self):
+        self.client.force_login(self._staff_user('manager1', 'Manager'))
+        self.assertEqual(self.client.get(self.order_url).status_code, 200)
+        self.assertEqual(self.client.get(self.coffee_url).status_code, 200)
+
+    def test_staff_with_no_group_sees_neither(self):
+        self.client.force_login(self._staff_user('nogroup1'))
+        self.assertEqual(self.client.get(self.order_url).status_code, 403)
+        self.assertEqual(self.client.get(self.coffee_url).status_code, 403)
+
+    def test_barista_group_has_expected_permissions(self):
+        codenames = set(Group.objects.get(name='Barista').permissions.values_list('codename', flat=True))
+        self.assertEqual(codenames, {'view_order', 'change_order', 'view_orderitem'})
+
+    def test_manager_group_has_expected_permissions(self):
+        codenames = set(Group.objects.get(name='Manager').permissions.values_list('codename', flat=True))
+        self.assertEqual(
+            codenames,
+            {'view_order', 'change_order', 'view_orderitem', 'view_coffee', 'change_coffee'},
+        )
