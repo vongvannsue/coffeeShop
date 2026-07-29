@@ -1,0 +1,46 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Sales Dashboard</h1>
+
+<div style="margin-bottom: 1.5em;">
+  {% for r in ranges %}
+    <a href="?range={{ r }}" style="margin-right: 1.5em; {% if r == range_key %}font-weight: bold; text-decoration: underline;{% endif %}">{{ r|title }}</a>
+  {% endfor %}
+</div>
+
+<div style="display: flex; gap: 3em; margin-bottom: 2em;">
+  <div>
+    <div style="font-size: 2em; font-weight: bold;">${{ total_sales|floatformat:2 }}</div>
+    <div>Total sales ({{ range_key }}, completed orders only)</div>
+  </div>
+  <div>
+    <div style="font-size: 2em; font-weight: bold;">{{ order_count }}</div>
+    <div>Completed orders ({{ range_key }})</div>
+  </div>
+</div>
+
+<h2>Best sellers (by units sold)</h2>
+<table>
+  <thead><tr><th style="text-align:left; padding-right: 2em;">Item</th><th style="text-align:left;">Units sold</th></tr></thead>
+  <tbody>
+    {% for row in best_sellers %}
+    <tr><td style="padding-right: 2em;">{{ row.name }}</td><td>{{ row.units }}</td></tr>
+    {% empty %}
+    <tr><td colspan="2">No completed orders in this range.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 style="margin-top: 1.5em;">Revenue by day</h2>
+<table>
+  <thead><tr><th style="text-align:left; padding-right: 2em;">Date</th><th style="text-align:left;">Revenue</th></tr></thead>
+  <tbody>
+    {% for row in revenue_by_day %}
+    <tr><td style="padding-right: 2em;">{{ row.day }}</td><td>${{ row.revenue|floatformat:2 }}</td></tr>
+    {% empty %}
+    <tr><td colspan="2">No completed orders in this range.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

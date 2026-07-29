@@ -148,8 +148,62 @@ time rather than pre-planning every issue before Phase 1 has shipped.
 
 ---
 
+## Phase 4 — Reporting & analytics
+
+### MB-04
+- **Title**: Add staff sales dashboard (totals, best-sellers, revenue by day)
+- **Type**: `feat`
+- **Depends on**: MB-01 (permission model), MB-02 (`Order.status` is what
+  "completed" filters on)
+- **Decisions recorded (confirmed 2026-07-29, in PR description)**:
+  - **Sales scope**: only `Order.status == 'completed'` counts toward
+    total sales / revenue-by-day. `pending`/`preparing`/`ready` are still
+    in-flight, not yet delivered; `cancelled` obviously excluded.
+  - **Best-sellers ranking**: by quantity sold (units), not revenue —
+    answers "what do we make the most of" for prep/inventory planning.
+  - **Access control**: a real custom permission
+    (`coffeeapp.view_dashboard`, via `Order.Meta.permissions`), granted to
+    the `Manager` group only (Owner/Admin already has it via
+    `is_superuser`; `Barista` does not). Chosen over an ad-hoc group-name
+    check to stay consistent with how MB-01/MB-02/MB-03 already gate
+    access through real `Permission` objects.
+  - **No new dependency**: plain HTML tables, no chart library. A visual
+    chart was floated in `MANAGEMENT_TODO.md`'s assumptions as an option,
+    not a requirement — tables satisfy the acceptance criteria without
+    taking on a new CDN asset + SRI-pinning burden for what's currently an
+    internal-only page.
+  - **No admin nav link yet**: reachable at `/admin/dashboard/` directly.
+    Adding a persistent link into the admin chrome requires overriding a
+    *shared* admin template (`index.html`/`base_site.html`), which only
+    works safely if `coffeeapp` is reordered before `django.contrib.admin`
+    in `INSTALLED_APPS` (a real Django template-shadowing gotcha) — that
+    reorder is exactly the kind of site-wide branding work already
+    earmarked for Phase 5 (`MANAGEMENT_TODO.md`: "custom admin site
+    header/branding"), so bundling it there instead of improvising a
+    partial fix here.
+- **Acceptance criteria**:
+  - [ ] Custom admin URL `/admin/dashboard/` (registered by wrapping
+        `admin.site.get_urls()`, not a full `AdminSite` subclass) shows:
+        total sales + completed-order count, best-sellers by quantity,
+        revenue by day.
+  - [ ] Date-range filter via `?range=` query param: `today`/`week`/
+        `month`/`all`, default `today`.
+  - [ ] `coffeeapp.view_dashboard` permission created via
+        `Order.Meta.permissions`, granted to `Manager` group by data
+        migration (same `create_permissions()` trick as MB-01, needed
+        for the same fresh-install timing reason).
+  - [ ] View raises `PermissionDenied` (403) for staff without the
+        permission; `admin.site.admin_view()` wrapper handles the
+        anonymous/non-staff redirect-to-login case for free.
+  - [ ] Tests: Barista gets 403; anonymous gets redirected; Manager gets
+        200 with totals that only include `completed` orders; the range
+        filter actually excludes old orders, not just accepts the param;
+        best-sellers ordered by quantity.
+  - [ ] `manage.py check` and `manage.py test` pass.
+
+---
+
 ## Not yet broken down
 
-Phases 4–5 of `MANAGEMENT_TODO.md` (reporting, polish) will get their own
-`MB-NN` entries here when each phase starts, per `CLAUDE.md`'s
-one-issue-at-a-time workflow — not pre-planned now.
+Phase 5 of `MANAGEMENT_TODO.md` (polish, incl. the admin branding/nav-link
+work MB-04 deferred to it) will get its own `MB-NN` entry when it starts.

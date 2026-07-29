@@ -84,6 +84,9 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-placed_at']
+        permissions = [
+            ('view_dashboard', 'Can view sales dashboard'),
+        ]
 
     def __str__(self):
         return f'Order #{self.id} — {self.user.username}'
