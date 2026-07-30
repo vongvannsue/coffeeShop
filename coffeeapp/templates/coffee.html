@@ -12,7 +12,7 @@
     {% endfor %}
 </nav>
 
-<div class="shell">
+<div class="shell{% if user.is_authenticated %} has-order-sidebar{% endif %}">
     <nav class="category-rail" aria-label="Menu categories">
         <span class="rail-label">Categories</span>
         {% for cat in categories %}
@@ -37,7 +37,7 @@
                 <div class="item-visual">
                     {% if item.quantity == 0 %}
                         <span class="avail-chip bad"><i class="dot"></i>Sold out</span>
-                    {% elif item.quantity <= 3 %}
+                    {% elif item.quantity <= item.low_stock_threshold %}
                         <span class="avail-chip warn"><i class="dot"></i>{{ item.quantity }} left today</span>
                     {% else %}
                         <span class="avail-chip good"><i class="dot"></i>Available</span>
@@ -64,5 +64,7 @@
         </div>
         {% include '_pagination.html' with page_obj=coffee %}
     </main>
+
+    {% include '_order_sidebar.html' %}
 </div>
 {% endblock %}

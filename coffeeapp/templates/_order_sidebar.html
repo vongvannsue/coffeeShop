@@ -1,0 +1,61 @@
+{% if user.is_authenticated %}
+<aside class="order-sidebar">
+    <div class="order-sidebar-header">
+        <h2>Your Order</h2>
+        <span class="order-count tabular">{{ cart_item_count }} item{{ cart_item_count|pluralize }}</span>
+    </div>
+
+    <div class="order-sidebar-body">
+        {% if sidebar_cart_items %}
+            <div class="order-list">
+                {% for item in sidebar_cart_items %}
+                <div class="order-line">
+                    <span class="order-line-name">{{ item.coffee_item.name }}</span>
+                    <span class="order-line-price tabular">${{ item.total_price|floatformat:2 }}</span>
+                    <span class="order-line-unit">${{ item.coffee_item.price|floatformat:2 }} each</span>
+                    <div class="order-line-controls">
+                        <div class="qty-stepper">
+                            <form action="{% url 'remove_from_cart' item.coffee_item.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" aria-label="Decrease quantity">&minus;</button>
+                            </form>
+                            <span class="qty-val tabular">{{ item.quantity }}</span>
+                            <form action="{% url 'add_to_cart' item.coffee_item.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" aria-label="Increase quantity">+</button>
+                            </form>
+                        </div>
+                        <form action="{% url 'delete_from_cart' item.coffee_item.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="remove-line">Remove</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="order-empty">
+                <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M9 21h20l-1.6 10.2a3 3 0 0 1-3 2.55H13.6a3 3 0 0 1-3-2.55L9 21Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 21v-4a6 6 0 0 1 12 0v4" stroke="currentColor" stroke-width="1.6"/></svg>
+                <p>Your ticket is empty. Add something from the menu to get started.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="order-sidebar-footer">
+        <div class="order-totals">
+            <div class="total-row"><span>Subtotal</span><span class="tabular">${{ sidebar_subtotal|floatformat:2 }}</span></div>
+            <div class="total-row"><span>Tax ({{ sidebar_tax_rate_pct }}%)</span><span class="tabular">${{ sidebar_tax|floatformat:2 }}</span></div>
+            <div class="total-row total-final"><span>Total</span><span class="tabular">${{ sidebar_total|floatformat:2 }}</span></div>
+        </div>
+        <div class="checkout-block">
+            <form action="{% url 'place_order' %}" method="post" style="display:contents">
+                {% csrf_token %}
+                <button type="submit" class="btn-checkout"{% if not sidebar_cart_items %} disabled{% endif %}>
+                    <span>Place Order</span>
+                    <span class="amt tabular">${{ sidebar_total|floatformat:2 }}</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</aside>
+{% endif %}

@@ -1,34 +1,57 @@
 {% load static %}
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Hearth &amp; Bean{% endblock %}</title>
+    <title>{% block title %}Love &amp; Coffee{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script>
+        // Runs before CSS paints, so a returning visitor's saved theme
+        // applies immediately - no flash of the wrong theme on load.
+        (function () {
+            var saved = localStorage.getItem('theme');
+            if (saved === 'light' || saved === 'dark') {
+                document.documentElement.setAttribute('data-theme', saved);
+            }
+        })();
+    </script>
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
-<header class="topbar">
-    <a class="brand" href="{% url 'home' %}">
-        <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-            <path class="steam-line" d="M14 14c-2 3 2 4 0 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <path class="steam-line" d="M20 12c-2 3 2 4 0 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <path class="steam-line" d="M26 14c-2 3 2 4 0 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <path d="M9 21h20l-1.6 10.2a3 3 0 0 1-3 2.55H13.6a3 3 0 0 1-3-2.55L9 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-            <path d="M29 23h1.8a3.2 3.2 0 0 1 0 6.4H29" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-        <span class="brand-text">
-            <span class="brand-name">Hearth &amp; Bean</span>
-            <span class="brand-tag">Roasted daily &middot; Ward Street</span>
-        </span>
-    </a>
-    <nav class="topbar-nav" aria-label="Site">
-        <a class="topbar-link{% if request.resolver_match.url_name == 'home' %} active{% endif %}" href="{% url 'home' %}">Menu</a>
-        <a class="topbar-link{% if request.resolver_match.url_name == 'biography' %} active{% endif %}" href="{% url 'biography' %}">Our Story</a>
-        {% if user.is_authenticated %}
+    <header class="topbar">
+        <a class="brand" href="{% url 'home' %}">
+            <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                <path class="steam-line" d="M14 14c-2 3 2 4 0 7" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" />
+                <path class="steam-line" d="M20 12c-2 3 2 4 0 7" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" />
+                <path class="steam-line" d="M26 14c-2 3 2 4 0 7" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" />
+                <path d="M9 21h20l-1.6 10.2a3 3 0 0 1-3 2.55H13.6a3 3 0 0 1-3-2.55L9 21Z" stroke="currentColor"
+                    stroke-width="1.7" stroke-linejoin="round" />
+                <path d="M29 23h1.8a3.2 3.2 0 0 1 0 6.4H29" stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round" />
+            </svg>
+            <span class="brand-text">
+                <span class="brand-name">Love &amp; Coffee</span>
+                <span class="brand-tag">Roasted daily &middot; Ward Street</span>
+            </span>
+        </a>
+        <nav class="topbar-nav" aria-label="Site">
+            <a class="topbar-link{% if request.resolver_match.url_name == 'home' %} active{% endif %}"
+                href="{% url 'home' %}">Menu</a>
+            <a class="topbar-link{% if request.resolver_match.url_name == 'biography' %} active{% endif %}"
+                href="{% url 'biography' %}">Our Story</a>
+            {% if user.is_authenticated %}
             <a class="topbar-cart" href="{% url 'cart_detail' %}">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5.5 8h13l-1 10.2a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5.5 8Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5.5 8h13l-1 10.2a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5.5 8Z" stroke="currentColor"
+                        stroke-width="1.7" />
+                    <path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.7" />
+                </svg>
                 <span>Cart</span>
                 {% if cart_item_count %}<span class="tabular">&middot; {{ cart_item_count }}</span>{% endif %}
             </a>
@@ -37,21 +60,35 @@
                 {% csrf_token %}
                 <button type="submit" class="btn-plain">Logout</button>
             </form>
-        {% else %}
+            {% else %}
             <a class="topbar-link" href="{% url 'login' %}">Login</a>
             <a class="topbar-link" href="{% url 'register' %}">Register</a>
-        {% endif %}
-    </nav>
-</header>
+            {% endif %}
+            <span class="topbar-status"><i class="dot"></i>Open &middot; closes 6:00pm</span>
+            <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                </svg>
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.6" />
+                    <path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8 6 18M18 6l1.8-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+                <span class="theme-toggle-label">Dark</span>
+            </button>
+        </nav>
+    </header>
 
-{% if messages %}
+    {% if messages %}
     <div class="messages">
         {% for message in messages %}
-            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">{{ message }}</div>
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">{{ message }}</div>
         {% endfor %}
     </div>
-{% endif %}
+    {% endif %}
 
-{% block content %}{% endblock %}
+    {% block content %}{% endblock %}
+
+    <script src="{% static 'js/theme.js' %}"></script>
 </body>
+
 </html>
