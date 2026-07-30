@@ -5,7 +5,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Sum
 from django.db.models.functions import TruncDate
 from django.template.response import TemplateResponse
-from django.urls import path
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -163,3 +163,39 @@ def _get_urls_with_dashboard():
 
 
 admin.site.get_urls = _get_urls_with_dashboard
+
+# MB-05: branding — plain attribute assignment, no template override
+# needed (unlike the nav link below, these render through the default
+# admin templates' own context variables).
+admin.site.site_header = 'Hearth & Bean Staff Admin'
+admin.site.site_title = 'Hearth & Bean Admin'
+admin.site.index_title = 'Staff Dashboard & Management'
+
+# MB-05: dashboard nav link. get_app_list() builds the exact structure
+# admin/index.html renders, so wrapping it (same pattern as get_urls()
+# above) adds a link without touching any shared template — avoids the
+# INSTALLED_APPS-ordering/template-shadowing risk MB-04 flagged for a
+# template-based approach. Gated on the same permission the page itself
+# checks, so the link and the page can't drift out of sync.
+_wrapped_get_app_list = admin.site.get_app_list
+
+
+def _get_app_list_with_dashboard_link(request, app_label=None):
+    app_list = _wrapped_get_app_list(request, app_label)
+    if not request.user.has_perm('coffeeapp.view_dashboard'):
+        return app_list
+    for app in app_list:
+        if app['app_label'] == 'coffeeapp':
+            app['models'].append({
+                'name': 'Sales dashboard',
+                'object_name': 'SalesDashboard',
+                'perms': {'view': True, 'add': False, 'change': False, 'delete': False},
+                'admin_url': reverse('admin:dashboard'),
+                'add_url': None,
+                'view_only': True,
+            })
+            break
+    return app_list
+
+
+admin.site.get_app_list = _get_app_list_with_dashboard_link

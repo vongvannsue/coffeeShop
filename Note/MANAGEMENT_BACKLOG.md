@@ -203,7 +203,46 @@ time rather than pre-planning every issue before Phase 1 has shipped.
 
 ---
 
-## Not yet broken down
+## Phase 5 — Polish & hardening
 
-Phase 5 of `MANAGEMENT_TODO.md` (polish, incl. the admin branding/nav-link
-work MB-04 deferred to it) will get its own `MB-NN` entry when it starts.
+### MB-05
+- **Title**: Admin branding, dashboard nav link, and test coverage gap-fill
+- **Type**: `chore`
+- **Depends on**: MB-01..MB-04 (touches all of them)
+- **Correction to MB-04's PR note**: that PR said a dashboard nav link
+  needed `coffeeapp` reordered before `django.contrib.admin` in
+  `INSTALLED_APPS` to safely override a shared template. On closer look,
+  there's a cleaner, template-free hook: `AdminSite.get_app_list()` builds
+  the exact `app_list` structure `admin/index.html` renders, and it's
+  already the wrapping pattern this project used for `get_urls()` in
+  MB-04. Wrapping `get_app_list()` to inject a synthetic "Sales dashboard"
+  entry into the `coffeeapp` app block avoids the shadowing risk
+  entirely — no `INSTALLED_APPS` reorder needed after all.
+- **Acceptance criteria**:
+  - [ ] `admin.site.site_header`/`site_title`/`index_title` set to
+        Hearth & Bean branding (matches `base.html`'s existing brand name)
+        — plain attribute assignment, no template override.
+  - [ ] `admin.site.get_app_list` wrapped to add a "Sales dashboard" link
+        into the `coffeeapp` app block, visible only to users with
+        `coffeeapp.view_dashboard` (same permission MB-04 already gates
+        the page itself on — the link and the page can't drift out of
+        sync since they check the same permission).
+  - [ ] Verified empirically against a real rendered admin index page
+        (not just a URL existing) that the link appears for Manager and
+        is absent for Barista.
+  - [ ] Test coverage gap-fill: superuser (Owner/Admin) can reach the
+        dashboard, `Coffee` admin, and `Order` admin without any group
+        (this was implied by "superuser bypasses permissions" since MB-01
+        but never actually asserted); a direct admin change-form edit of
+        `Order.status` (not just the bulk actions) confirms the free-form
+        decision holds there too; two sequential restock actions produce
+        the correct cumulative total (documents the atomic-`F()` claim
+        from MB-03, doesn't newly prove concurrency — real concurrent
+        writes still aren't meaningfully testable on SQLite, same
+        limitation noted in `TODO.md` for the cart's stock guard).
+  - [ ] Re-run `manage.py check` and `manage.py check --deploy` (with
+        `DEBUG=False`/real `ALLOWED_HOSTS` env overrides, same method as
+        `TODO.md` Phase 1) after all Phase 1–5 model/admin changes —
+        confirms this "just admin config" work didn't regress the
+        security posture established there.
+  - [ ] `manage.py test` passes.

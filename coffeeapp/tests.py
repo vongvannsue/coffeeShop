@@ -385,6 +385,22 @@ class OrderStatusManagementTests(TestCase):
         self.assertEqual(self.order1.status, Order.Status.COMPLETED)
         self.assertEqual(self.order2.status, Order.Status.PENDING)
 
+    def test_direct_edit_allows_arbitrary_status_jump(self):
+        # Free-form decision (MB-02): jumping pending -> completed
+        # directly via the change form (not just a bulk action) must be
+        # allowed - there's no enforced sequence to validate against.
+        resp = self.client.post(reverse('admin:coffeeapp_order_change', args=[self.order1.pk]), {
+            'status': Order.Status.COMPLETED,
+            'items-TOTAL_FORMS': '0',
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+            '_save': 'Save',
+        })
+        self.order1.refresh_from_db()
+        self.assertRedirects(resp, reverse('admin:coffeeapp_order_changelist'))
+        self.assertEqual(self.order1.status, Order.Status.COMPLETED)
+
 
 class CoffeeRestockTests(TestCase):
     """MB-03: restock bulk action, exercised via the Manager group's
@@ -411,6 +427,21 @@ class CoffeeRestockTests(TestCase):
         self.latte.refresh_from_db()
         self.assertEqual(self.espresso.quantity, 13)
         self.assertEqual(self.latte.quantity, 8)
+
+    def test_sequential_restocks_accumulate_correctly(self):
+        # Documents the atomic-F()-update claim from MB-03: two restocks
+        # in a row must land on 3 + 10 + 10, not lose an update to a
+        # naive read-modify-write. Real concurrent writes aren't
+        # meaningfully testable on SQLite (same limitation TODO.md notes
+        # for the cart's stock guard) - this proves correctness of the
+        # update expression itself, not thread-safety under a race.
+        for _ in range(2):
+            self.client.post(reverse('admin:coffeeapp_coffee_changelist'), {
+                'action': 'restock',
+                '_selected_action': [str(self.espresso.pk)],
+            })
+        self.espresso.refresh_from_db()
+        self.assertEqual(self.espresso.quantity, 23)
 
     def test_barista_cannot_restock(self):
         # Barista has no change_coffee permission (MB-01) - the action
@@ -487,3 +518,40 @@ class SalesDashboardTests(TestCase):
         best = list(resp.context['best_sellers'])
         self.assertEqual(best[0]['name'], 'Latte')
         self.assertEqual(best[0]['units'], 7)
+
+    def test_dashboard_link_visible_to_manager_not_barista(self):
+        # MB-05: the get_app_list() nav-link injection is gated on the
+        # same permission as the page itself.
+        self.client.login(username='dash_manager', password='strongpass123')
+        resp = self.client.get(reverse('admin:index'))
+        self.assertContains(resp, 'Sales dashboard')
+
+        self.client.logout()
+        self.client.login(username='dash_barista', password='strongpass123')
+        resp = self.client.get(reverse('admin:index'))
+        self.assertNotContains(resp, 'Sales dashboard')
+
+
+class SuperuserAccessTests(TestCase):
+    """MB-05: Owner/Admin (is_superuser) reaches every staff-gated surface
+    with no group assignment - implied since MB-01 but never previously
+    asserted directly."""
+
+    def setUp(self):
+        self.coffee = Coffee.objects.create(
+            name='Cappuccino', price=4.0, quantity=10, image='https://example.com/c.jpg',
+        )
+        buyer = User.objects.create_user(username='super_buyer', password='strongpass123')
+        self.order = Order.objects.create(user=buyer, subtotal=4, tax=0.4, total=4.4)
+
+        self.owner = User.objects.create_superuser(username='owner_admin', password='strongpass123')
+        self.client.login(username='owner_admin', password='strongpass123')
+
+    def test_superuser_reaches_dashboard_and_coffee_and_order_admin(self):
+        self.assertEqual(self.client.get(reverse('admin:dashboard')).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse('admin:coffeeapp_coffee_change', args=[self.coffee.pk])).status_code, 200,
+        )
+        self.assertEqual(
+            self.client.get(reverse('admin:coffeeapp_order_change', args=[self.order.pk])).status_code, 200,
+        )
