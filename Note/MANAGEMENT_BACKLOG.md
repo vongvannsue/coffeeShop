@@ -6,16 +6,21 @@ Workflow (Per Issue)" section). Separate numbering (`MB-NN`) from `BL-NN` to
 avoid collision — this is a distinct initiative, not a continuation of the
 customer-facing roadmap.
 
-> **GitHub Issues remain disabled on this repo** (confirmed 2026-07-29,
-> `gh issue list` still returns "the repository has disabled issues"). Per
-> the precedent set for BL-17..BL-20 (#9–#12), the `Issue:` step is skipped
-> entirely — go straight from backlog entry to branch to PR, with the PR
-> body referencing the `MB-NN` entry directly instead of a real issue
-> number. No labels are applied (none were on the BL-17..20 PRs either).
+> **Status: all items complete.** MB-01 through MB-05 all shipped (PRs
+> #15–#19) — see `MANAGEMENT_TODO.md`'s per-phase notes for the confirmed
+> decisions and outcomes.
 
-Items are added phase-by-phase as each phase of `MANAGEMENT_TODO.md` starts,
-not all up front — matches how this project actually works one phase at a
-time rather than pre-planning every issue before Phase 1 has shipped.
+> **GitHub Issues remained disabled on this repo throughout** (confirmed
+> 2026-07-29, `gh issue list` returned "the repository has disabled
+> issues"). Per the precedent set for BL-17..BL-20 (#9–#12), the `Issue:`
+> step was skipped entirely for every MB-NN item — straight from backlog
+> entry to branch to PR, with the PR body referencing the `MB-NN` entry
+> directly instead of a real issue number. No labels were applied (none
+> were on the BL-17..20 PRs either).
+
+Items were added phase-by-phase as each phase of `MANAGEMENT_TODO.md`
+started, not all up front — matches how this project actually works one
+phase at a time rather than pre-planning every issue before Phase 1 shipped.
 
 ---
 
@@ -41,21 +46,21 @@ time rather than pre-planning every issue before Phase 1 has shipped.
     note) is **deferred to Phase 4** — there's no report/dashboard view to
     gate yet, so granting a permission for it now would be speculative.
 - **Acceptance criteria**:
-  - [ ] Data migration (in `users` app, alongside the existing `Profile`
+  - [x] Data migration (in `users` app, alongside the existing `Profile`
         backfill migration) creates `Barista` and `Manager` `Group`s with
         the permissions above. Reversible — reverse migration removes the
         groups.
-  - [ ] No changes needed to `coffeeapp/admin.py`'s `OrderAdmin`/
+  - [x] No changes needed to `coffeeapp/admin.py`'s `OrderAdmin`/
         `CoffeeAdmin` for this issue — Django's built-in permission checks
         (`has_view_permission`/`has_change_permission`) already gate access
         based on group permissions; confirmed empirically, not assumed.
-  - [ ] Tests: a `Barista`-group user can reach `Order` change view (200)
+  - [x] Tests: a `Barista`-group user can reach `Order` change view (200)
         but not `Coffee` change view (403); a `Manager`-group user can
         reach both; an unaffiliated `is_staff` user with no group can
         reach neither. Covers the actual security boundary, not just that
         the groups exist.
-  - [ ] `manage.py check` and `manage.py test` pass.
-  - [ ] PR body documents the three decisions above (matches the BL-02
+  - [x] `manage.py check` and `manage.py test` pass.
+  - [x] PR body documents the three decisions above (matches the BL-02
         precedent of recording architecture decisions in the PR
         description, not just the commit).
 
@@ -76,30 +81,30 @@ time rather than pre-planning every issue before Phase 1 has shipped.
   could mis-click an order from `pending` straight to `completed` or back
   from `completed` to `pending` with nothing stopping them.
 - **Acceptance criteria**:
-  - [ ] `Order.status` field added: `CharField` with choices
+  - [x] `Order.status` field added: `CharField` with choices
         (`pending`/`preparing`/`ready`/`completed`/`cancelled`), default
         `pending`, `db_index=True` (used immediately by `list_filter`,
         not speculative). Migration generated and applied; existing
         `Order` rows backfill to `pending` via the field default.
-  - [ ] Checkout (`coffeeapp/views.py`'s order-placement view, #14)
+  - [x] Checkout (`coffeeapp/views.py`'s order-placement view, #14)
         needs no changes — it doesn't pass `status` explicitly, so new
         orders get `pending` automatically from the model default.
-  - [ ] `OrderAdmin.list_display` shows a colour-coded status badge (not
+  - [x] `OrderAdmin.list_display` shows a colour-coded status badge (not
         plain text) so staff can scan a list of orders at a glance;
         `list_filter` includes `status`.
-  - [ ] Four bulk admin actions: mark selected as
+  - [x] Four bulk admin actions: mark selected as
         preparing/ready/completed/cancelled. Gated by Django's normal
         `change_order` permission check (no extra gating needed — Barista
         and Manager already have it from MB-01).
-  - [ ] Known, accepted limitations (not fixed in this issue): no
+  - [x] Known, accepted limitations (not fixed in this issue): no
         live/auto-refresh (staff must reload to see new orders); no
         optimistic locking (concurrent edits to the same order, last
         write wins).
-  - [ ] Tests: new `Order` defaults to `pending`; each bulk action updates
+  - [x] Tests: new `Order` defaults to `pending`; each bulk action updates
         status only for selected orders, exercised as a `Barista`-group
         staff user (proves the MB-01 permission actually authorizes this,
         not just that the action code runs).
-  - [ ] `manage.py check` and `manage.py test` pass.
+  - [x] `manage.py check` and `manage.py test` pass.
 
 ---
 
@@ -122,12 +127,12 @@ time rather than pre-planning every issue before Phase 1 has shipped.
     (+10)"), not a custom form for an exact quantity — matches the
     existing bulk-action pattern from MB-02, no new form/template needed.
 - **Acceptance criteria**:
-  - [ ] `Coffee.low_stock_threshold` field added (`PositiveIntegerField`,
+  - [x] `Coffee.low_stock_threshold` field added (`PositiveIntegerField`,
         sensible default). Migration generated and applied.
-  - [ ] `CoffeeAdmin.list_display` shows a colour-coded stock badge
+  - [x] `CoffeeAdmin.list_display` shows a colour-coded stock badge
         (quantity vs. threshold), sortable by quantity
         (`admin_order_field`).
-  - [ ] Bulk admin action "Restock selected (+10)" — implemented as
+  - [x] Bulk admin action "Restock selected (+10)" — implemented as
         `queryset.update(quantity=F('quantity') + 10)`, a single atomic
         `UPDATE` statement per row. **Not** `select_for_update()` +
         Python read-modify-write — that pattern exists elsewhere
@@ -136,15 +141,15 @@ time rather than pre-planning every issue before Phase 1 has shipped.
         restock is a single-field bulk update with no branching, so the
         DB-level atomic `F()` update alone is sufficient and correct
         without extra locking.
-  - [ ] Confirmed no naive `quantity += n` read-modify-write race exists
+  - [x] Confirmed no naive `quantity += n` read-modify-write race exists
         anywhere in the new code — this was flagged as a real concurrency
         risk in `MANAGEMENT_TODO.md` given the existing cart reservation
         logic touches the same field.
-  - [ ] Tests: threshold/badge logic at the model boundary; restock action
+  - [x] Tests: threshold/badge logic at the model boundary; restock action
         increments only the selected `Coffee` rows, exercised as a
         `Manager`-group staff user (proves the MB-01 permission actually
         authorizes this).
-  - [ ] `manage.py check` and `manage.py test` pass.
+  - [x] `manage.py check` and `manage.py test` pass.
 
 ---
 
@@ -182,24 +187,24 @@ time rather than pre-planning every issue before Phase 1 has shipped.
     header/branding"), so bundling it there instead of improvising a
     partial fix here.
 - **Acceptance criteria**:
-  - [ ] Custom admin URL `/admin/dashboard/` (registered by wrapping
+  - [x] Custom admin URL `/admin/dashboard/` (registered by wrapping
         `admin.site.get_urls()`, not a full `AdminSite` subclass) shows:
         total sales + completed-order count, best-sellers by quantity,
         revenue by day.
-  - [ ] Date-range filter via `?range=` query param: `today`/`week`/
+  - [x] Date-range filter via `?range=` query param: `today`/`week`/
         `month`/`all`, default `today`.
-  - [ ] `coffeeapp.view_dashboard` permission created via
+  - [x] `coffeeapp.view_dashboard` permission created via
         `Order.Meta.permissions`, granted to `Manager` group by data
         migration (same `create_permissions()` trick as MB-01, needed
         for the same fresh-install timing reason).
-  - [ ] View raises `PermissionDenied` (403) for staff without the
+  - [x] View raises `PermissionDenied` (403) for staff without the
         permission; `admin.site.admin_view()` wrapper handles the
         anonymous/non-staff redirect-to-login case for free.
-  - [ ] Tests: Barista gets 403; anonymous gets redirected; Manager gets
+  - [x] Tests: Barista gets 403; anonymous gets redirected; Manager gets
         200 with totals that only include `completed` orders; the range
         filter actually excludes old orders, not just accepts the param;
         best-sellers ordered by quantity.
-  - [ ] `manage.py check` and `manage.py test` pass.
+  - [x] `manage.py check` and `manage.py test` pass.
 
 ---
 
@@ -219,18 +224,18 @@ time rather than pre-planning every issue before Phase 1 has shipped.
   entry into the `coffeeapp` app block avoids the shadowing risk
   entirely — no `INSTALLED_APPS` reorder needed after all.
 - **Acceptance criteria**:
-  - [ ] `admin.site.site_header`/`site_title`/`index_title` set to
+  - [x] `admin.site.site_header`/`site_title`/`index_title` set to
         Hearth & Bean branding (matches `base.html`'s existing brand name)
         — plain attribute assignment, no template override.
-  - [ ] `admin.site.get_app_list` wrapped to add a "Sales dashboard" link
+  - [x] `admin.site.get_app_list` wrapped to add a "Sales dashboard" link
         into the `coffeeapp` app block, visible only to users with
         `coffeeapp.view_dashboard` (same permission MB-04 already gates
         the page itself on — the link and the page can't drift out of
         sync since they check the same permission).
-  - [ ] Verified empirically against a real rendered admin index page
+  - [x] Verified empirically against a real rendered admin index page
         (not just a URL existing) that the link appears for Manager and
         is absent for Barista.
-  - [ ] Test coverage gap-fill: superuser (Owner/Admin) can reach the
+  - [x] Test coverage gap-fill: superuser (Owner/Admin) can reach the
         dashboard, `Coffee` admin, and `Order` admin without any group
         (this was implied by "superuser bypasses permissions" since MB-01
         but never actually asserted); a direct admin change-form edit of
@@ -240,9 +245,9 @@ time rather than pre-planning every issue before Phase 1 has shipped.
         from MB-03, doesn't newly prove concurrency — real concurrent
         writes still aren't meaningfully testable on SQLite, same
         limitation noted in `TODO.md` for the cart's stock guard).
-  - [ ] Re-run `manage.py check` and `manage.py check --deploy` (with
+  - [x] Re-run `manage.py check` and `manage.py check --deploy` (with
         `DEBUG=False`/real `ALLOWED_HOSTS` env overrides, same method as
         `TODO.md` Phase 1) after all Phase 1–5 model/admin changes —
         confirms this "just admin config" work didn't regress the
         security posture established there.
-  - [ ] `manage.py test` passes.
+  - [x] `manage.py test` passes.
